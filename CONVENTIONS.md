@@ -18,7 +18,7 @@ these conventions when proposing commits, edits, or refactors.
 Format: [Conventional Commits](https://www.conventionalcommits.org/).
 
 ```
-<type>(<scope>): <subject>
+<type>[optional scope]: <subject>
 
 <body>
 
@@ -60,6 +60,8 @@ If a commit genuinely doesn't fit any scope, prefer `chore` over inventing one.
 
 ### Rules
 
+- **Scope**: optional. When present, use one of the project-specific scopes
+  above.
 - **Subject**: imperative mood, no trailing period, <= 72 chars, lowercase after the colon.
 - **Body**: explain _why_, not _what_. Wrap at ~72 chars. Omit the body if the subject is self-explanatory.
 - **Footer**: reference issues (`Refs: #123`) or note breaking changes (`BREAKING CHANGE: <note>`).
@@ -99,11 +101,15 @@ Refs: #42
 
 ### Imports and modules
 
-- Use the path alias (`@/...`) for src-relative imports. No `../../../` chains.
+- Use the package-private alias for imports within a package's `src/` tree:
+  `#engine/...` in engine and `#sandbox/...` in sandbox. Each package owns its
+  alias through its `package.json` `imports` map, so engine imports still
+  resolve when Vite consumes its source. Do not use relative source imports or
+  a bundle-global `@/...` alias.
 - Group order, separated by blank lines:
   1. Node / standard library
   2. External packages
-  3. Internal `@/...`
+  3. Internal workspace packages and package-private aliases
   4. Type-only imports
 - Type-only imports use `import type` so they're elided at runtime.
 
@@ -148,4 +154,5 @@ consult ARCHITECTURE.md when deciding _where_ a file goes.
 - Prefer the more boring choice.
 - Prefer explicit over clever.
 - Prefer fewer files to fewer cross-cutting dependencies.
-- If a rule feels wrong, edit this file and commit the change as `docs(Conventions): ...`.
+- If a rule feels wrong, edit this file and commit the change as
+  `docs: revise the <topic> convention`.

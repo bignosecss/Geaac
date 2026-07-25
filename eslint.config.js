@@ -19,6 +19,32 @@ export default tseslint.config(
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {
+    files: ['packages/**/*.{ts,tsx}'],
+    rules: {
+      '@typescript-eslint/consistent-type-definitions': ['error', 'type'],
+      '@typescript-eslint/consistent-type-imports': [
+        'error',
+        { fixStyle: 'separate-type-imports', prefer: 'type-imports' },
+      ],
+    },
+  },
+  {
+    files: ['packages/*/src/**/*.{ts,tsx}'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: ['./**', '../**'],
+              message: 'Use the package-private alias for source imports.',
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
     files: ['packages/engine/**/*.ts'],
     languageOptions: {
       globals: { ...globals.node },

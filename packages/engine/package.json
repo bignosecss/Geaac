@@ -8,6 +8,9 @@
   "exports": {
     ".": "./src/index.ts"
   },
+  "imports": {
+    "#engine/*": "./src/*.ts"
+  },
   "scripts": {
     "test": "vitest run",
     "test:watch": "vitest",

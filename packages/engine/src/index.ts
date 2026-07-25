@@ -1,1 +1,1 @@
-export { ENGINE_VERSION } from './version'
+export { ENGINE_VERSION } from '#engine/version'

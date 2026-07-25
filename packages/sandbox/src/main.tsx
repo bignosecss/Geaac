@@ -1,7 +1,8 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
-import { App } from './app'
-import './index.css'
+
+import { App } from '#sandbox/App'
+import '#sandbox/index.css'
 
 const rootEl = document.getElementById('root')
 if (!rootEl) {

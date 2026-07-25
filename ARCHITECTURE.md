@@ -68,8 +68,8 @@ across any consumer (sandbox today, editor tomorrow, third-party app
 later). The package boundary is what enforces this; a lint rule
 alone would not be sufficient.
 
-Status: scaffolding today; real code starts with the first slice
-(logger + event bus).
+Status: scaffolded (barrel, version module, one passing test).
+Next: first real slice — logger + event bus.
 
 ### `@geaac/sandbox`
 
@@ -81,7 +81,7 @@ Why: gives us a runnable artifact to validate engine behavior in a
 real browser, and is the natural host for ad-hoc experiments while
 developing engine modules.
 
-Status: scaffolding today.
+Status: scaffolded (Vite + React 19, imports engine, renders version).
 
 ### `@geaac/editor` (planned)
 
@@ -174,6 +174,18 @@ without notice. Sandbox (and later editor) imports only from
 - **Rationale**: each doc stays small and scannable; AI tools load
   the right doc at the right time; mirrors how real projects
   organize documentation.
+
+### 2026-07-25 - Cross-tool command layout for AI agents
+
+- **Decision**: canonical command prompts live in `.agents/commands/`;
+  per-tool wrappers (`.claude/commands/`, `.codex/commands/`) each
+  contain a thin pointer to the canonical file.
+- **Rationale**: single source of truth for command logic; per-tool
+  files register the slash command in each tool without duplicating
+  the prompt. Adding a new tool means one 3-line file; changing
+  behavior means editing one file.
+- **Alternative**: duplicate the full prompt in each tool's directory.
+  Rejected because drift between copies is inevitable.
 
 ## Open questions
 

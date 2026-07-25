@@ -45,6 +45,12 @@ See [CONVENTIONS.md](./CONVENTIONS.md) for the commit-message format and
 code conventions (naming, imports, React, engine, testing, file layout).
 AI tools MUST read and follow it when proposing commits or edits.
 
+## Architecture
+See [ARCHITECTURE.md](./ARCHITECTURE.md) for the system shape, package
+boundaries, dependency rules, browser/runtime model, and decision log.
+AI tools MUST consult it before designing new modules, proposing
+structural changes, or modifying the package boundary.
+
 ## Update cadence
 This file is a living document. Whenever preferences, scope, or principles
 change, edit it. New sessions of Codex/Claude Code will read the latest

@@ -4,12 +4,15 @@ import { createApplication } from '@geaac/engine'
 
 describe('createApplication', () => {
   it('creates an application from client configuration', () => {
+    const canvas = {} as HTMLCanvasElement
     const application = createApplication({
       name: 'Test Application',
+      canvas,
     })
 
     expect(application).toEqual({
       name: 'Test Application',
+      canvas,
     })
   })
 })

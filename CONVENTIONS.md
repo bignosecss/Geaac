@@ -123,8 +123,9 @@ Refs: #42
 
 ### Engine code (the heart of this project)
 
-- Engine packages MUST NOT import React or DOM-only APIs directly. Go through an abstraction layer (e.g. a `Platform` interface) so the engine is testable in isolation.
-- Renderer code is pure: takes a scene + viewport, produces pixels. No direct DOM reads inside render passes.
+- Engine packages MUST NOT import React. Browser APIs enter through explicit host inputs, such as an injected canvas, or through platform/backend modules.
+- Engine code does not query ambient DOM state to discover host elements. The consumer owns DOM placement and passes required elements at the composition root.
+- API-neutral renderer code does not read the DOM. Graphics API calls belong in their WebGL or WebGPU backend.
 - ECS data is data; systems are pure functions over data where possible.
 - Each engine module ships with at least one unit test before being marked "done" in AGENTS.md.
 

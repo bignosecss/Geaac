@@ -14,7 +14,7 @@ The system is a pnpm-workspaces monorepo with two packages today
 ```mermaid
 flowchart LR
   Browser[Browser] -->|loads bundle| Sandbox[sandbox<br/>Vite + React]
-  Sandbox -->|workspace import| Engine[engine<br/>pure TS lib]
+  Sandbox -->|workspace import + canvas| Engine[engine<br/>browser engine lib]
 ```
 
 In the browser there is exactly one bundle. The package boundary
@@ -34,7 +34,7 @@ Geaac/                          workspace root
 |-- .gitignore
 |-- .npmrc
 `-- packages/
-    |-- engine/                 pure TS lib, no React, no DOM
+    |-- engine/                 TypeScript browser engine, no React
     |   |-- package.json        name: @geaac/engine
     |   |-- tsconfig.json       composite, references: []
     |   `-- src/
@@ -56,18 +56,19 @@ Geaac/                          workspace root
 
 ### `@geaac/engine`
 
-Role: pure TypeScript library. All reusable engine code lives here.
+Role: TypeScript browser engine library. All reusable engine code lives here.
 
 Constraints:
 
 - No React in `dependencies` or `devDependencies`.
-- No browser-only APIs (`window`, `document`, `canvas`, ...).
+- Browser APIs enter through explicit host inputs or platform/backend modules;
+  engine code does not discover host elements through ambient DOM queries.
 - No imports from `@geaac/sandbox` or any future sibling package.
 
-Why: keeps engine code testable in Node without a DOM, and reusable
-across any consumer (sandbox today, editor tomorrow, third-party app
-later). The package boundary is what enforces this; a lint rule
-alone would not be sufficient.
+Why: the engine owns the browser runtime and graphics integration, while the
+consumer owns its DOM layout and supplies the canvas on which the engine will
+render. Explicit inputs keep API-neutral engine code testable in Node and the
+engine reusable across browser consumers.
 
 Status: scaffolded (public API, entry-point protocol, version module).
 Next: first real runtime slice.
@@ -97,7 +98,7 @@ The whole architecture is encoded in this matrix:
 
 | From    | May import                                         |
 | ------- | -------------------------------------------------- |
-| engine  | node stdlib, own modules                           |
+| engine  | web platform APIs, node stdlib, own modules        |
 | sandbox | engine, React, third-party libs                    |
 | editor  | engine, sandbox rarely, React, Tailwind, shadcn/ui |
 
@@ -213,22 +214,24 @@ without notice. Sandbox (and later editor) imports only from
 - **Alternative**: duplicate the full prompt in each tool's directory.
   Rejected because drift between copies is inevitable.
 
-### 2026-07-25 - Engine-owned application factory
+### 2026-07-25 - Engine-owned application factory with injected canvas
 
 - **Decision**: the engine exports `createApplication(config)`. The sandbox
-  calls it with application-specific configuration from its `main.tsx` entry
-  module.
+  calls it from `main.tsx` with application-specific configuration and its host
+  canvas.
 - **Rationale**: the engine should own how an application is constructed while
-  the client owns what it configures. Explicit arguments are the native
-  TypeScript module mechanism for this boundary; a client-implemented factory
-  would reproduce Hazel's C++ linker solution without its underlying need.
+  the client owns what it configures and where the canvas lives in the DOM. The
+  engine receives the canvas because graphics context creation and rendering
+  are engine responsibilities. Explicit arguments are the native TypeScript
+  module mechanism for this boundary; a client-implemented factory would
+  reproduce Hazel's C++ linker solution without its underlying need.
 - **Naming**: use `Application`, `ApplicationConfig`, and `createApplication`.
   Avoid `Geaac` in symbol names because the `@geaac/engine` import already
   supplies that namespace. Use “config”, not “props”, because these are
   construction-time engine values rather than React render inputs.
-- **Scope**: `Application` contains only identity and `createApplication` only
-  constructs it. No `run` operation exists until there is lifecycle behavior
-  to run.
+- **Scope**: `Application` contains only identity and the injected canvas;
+  `createApplication` does not initialize a graphics API. No `run` operation
+  exists until there is lifecycle behavior to run.
 
 ## Open questions
 

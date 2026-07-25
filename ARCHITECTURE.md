@@ -1,8 +1,8 @@
 # Architecture
 
-Companion to [AGENTS.md](./AGENTS.md) (the *why*) and
-[CONVENTIONS.md](./CONVENTIONS.md) (the *how*). This file describes
-the *what*: system shape, packages, dependency rules, the
+Companion to [AGENTS.md](./AGENTS.md) (the _why_) and
+[CONVENTIONS.md](./CONVENTIONS.md) (the _how_). This file describes
+the _what_: system shape, packages, dependency rules, the
 browser/runtime model, and the reasoning behind non-trivial decisions.
 
 ## System overview
@@ -59,6 +59,7 @@ Geaac/                          workspace root
 Role: pure TypeScript library. All reusable engine code lives here.
 
 Constraints:
+
 - No React in `dependencies` or `devDependencies`.
 - No browser-only APIs (`window`, `document`, `canvas`, ...).
 - No imports from `@geaac/sandbox` or any future sibling package.
@@ -94,11 +95,11 @@ in TheCherno's series.
 
 The whole architecture is encoded in this matrix:
 
-| From    | May import                                            |
-|---------|-------------------------------------------------------|
-| engine  | node stdlib, own modules                              |
-| sandbox | engine, React, third-party libs                       |
-| editor  | engine, sandbox rarely, React, Tailwind, shadcn/ui    |
+| From    | May import                                         |
+| ------- | -------------------------------------------------- |
+| engine  | node stdlib, own modules                           |
+| sandbox | engine, React, third-party libs                    |
+| editor  | engine, sandbox rarely, React, Tailwind, shadcn/ui |
 
 Enforced by package boundaries. Engine has no React in its
 `dependencies`, so any attempt to `import 'react'` from inside

@@ -137,18 +137,10 @@ Refs: #42
 - Both run via `pnpm lint` and `pnpm format`. CI must pass.
 
 ### File layout
-
-```
-src/
-  engine/      # windowing, events, input, logging  (no React)
-  renderer/    # 2D, 3D, materials, lighting       (no React)
-  scene/       # ECS, scene graph, serialization   (no React)
-  editor/      # React + Tailwind editor UI; uses engine via adapters
-  ui/          # Shared React primitives (button, panel, ...)
-  state/       # Zustand stores
-  types/       # Only types shared across >= 3 modules
-  utils/       # Only utilities shared across >= 3 modules
-```
+Repository layout and package-internal structure live in
+[ARCHITECTURE.md](./ARCHITECTURE.md) (it is the single source of truth
+for the shape of the codebase). This file covers only code style;
+consult ARCHITECTURE.md when deciding *where* a file goes.
 
 ### When in doubt
 

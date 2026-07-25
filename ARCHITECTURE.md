@@ -69,8 +69,8 @@ across any consumer (sandbox today, editor tomorrow, third-party app
 later). The package boundary is what enforces this; a lint rule
 alone would not be sufficient.
 
-Status: scaffolded (barrel, version module, one passing test).
-Next: first real slice — logger + event bus.
+Status: scaffolded (public API, entry-point protocol, version module).
+Next: first real runtime slice.
 
 ### `@geaac/sandbox`
 
@@ -82,7 +82,7 @@ Why: gives us a runnable artifact to validate engine behavior in a
 real browser, and is the natural host for ad-hoc experiments while
 developing engine modules.
 
-Status: scaffolded (Vite + React 19, imports engine, renders version).
+Status: scaffolded (Vite + React 19, configures an engine application).
 
 ### `@geaac/editor` (planned)
 
@@ -128,6 +128,31 @@ pnpm build
        `-- bundles engine + sandbox into dist/assets/index-[hash].js
        `-- deploy dist/ to any static host
 ```
+
+### Entry point
+
+`packages/sandbox/src/main.tsx` is both the browser module entry point and the
+composition root. It passes sandbox-owned configuration to the engine-owned
+`createApplication` factory, then mounts the React UI with the resulting
+application:
+
+```text
+browser loads main.tsx
+  |-- createApplication({ name: "GEAAC Sandbox" })
+  |     |-- sandbox owns application configuration
+  |     `-- engine owns application construction
+  `-- React renders the application UI
+```
+
+This preserves the architectural lesson from Hazel without copying its C++
+linkage mechanism. Hazel needs the client to implement `CreateApplication` so
+an engine-owned `main` can discover the concrete application at link time. In
+the browser, `main.tsx` already owns module startup, so ordinary function
+arguments make that dependency explicit.
+
+For now, `createApplication` only converts configuration into an application.
+A `run` function, launch and shutdown behavior, rendering, and events are
+deferred until their corresponding lessons give those operations real work.
 
 ## Inside-package layout (engine)
 
@@ -187,6 +212,23 @@ without notice. Sandbox (and later editor) imports only from
   behavior means editing one file.
 - **Alternative**: duplicate the full prompt in each tool's directory.
   Rejected because drift between copies is inevitable.
+
+### 2026-07-25 - Engine-owned application factory
+
+- **Decision**: the engine exports `createApplication(config)`. The sandbox
+  calls it with application-specific configuration from its `main.tsx` entry
+  module.
+- **Rationale**: the engine should own how an application is constructed while
+  the client owns what it configures. Explicit arguments are the native
+  TypeScript module mechanism for this boundary; a client-implemented factory
+  would reproduce Hazel's C++ linker solution without its underlying need.
+- **Naming**: use `Application`, `ApplicationConfig`, and `createApplication`.
+  Avoid `Geaac` in symbol names because the `@geaac/engine` import already
+  supplies that namespace. Use “config”, not “props”, because these are
+  construction-time engine values rather than React render inputs.
+- **Scope**: `Application` contains only identity and `createApplication` only
+  constructs it. No `run` operation exists until there is lifecycle behavior
+  to run.
 
 ## Open questions
 

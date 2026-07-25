@@ -1,14 +1,8 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 
-import { createApplication } from '@geaac/engine'
-
 import { App } from '#sandbox/App'
 import '#sandbox/index.css'
-
-const application = createApplication({
-  name: 'GEAAC Sandbox',
-})
 
 const rootEl = document.getElementById('root')
 if (!rootEl) {
@@ -17,6 +11,6 @@ if (!rootEl) {
 
 createRoot(rootEl).render(
   <StrictMode>
-    <App application={application} />
+    <App />
   </StrictMode>,
 )

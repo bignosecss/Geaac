@@ -132,28 +132,34 @@ pnpm build
 
 ### Entry point
 
-`packages/sandbox/src/main.tsx` is both the browser module entry point and the
-composition root. It passes sandbox-owned configuration to the engine-owned
-`createApplication` factory, then mounts the React UI with the resulting
-application:
+`packages/sandbox/src/App.tsx` is the engine composition root. The React
+component renders the host canvas and calls `createApplication` in a mount
+effect once the element is attached, so the engine can never run before its
+rendering surface exists. `packages/sandbox/src/main.tsx` is the React
+bootstrap only: find `#root`, render `<App />`.
 
 ```text
 browser loads main.tsx
-  |-- createApplication({ name: "GEAAC Sandbox" })
-  |     |-- sandbox owns application configuration
-  |     `-- engine owns application construction
+  |-- React renders <App /> into #root
+  `-- <App /> mounts
+        |-- <canvas ref={canvasRef} /> becomes the host surface
+        `-- createApplication({ name: "GEAAC Sandbox", canvas })
+              |-- sandbox owns application configuration and DOM placement
+              `-- engine owns application construction and retains the canvas
   `-- React renders the application UI
 ```
 
 This preserves the architectural lesson from Hazel without copying its C++
 linkage mechanism. Hazel needs the client to implement `CreateApplication` so
 an engine-owned `main` can discover the concrete application at link time. In
-the browser, `main.tsx` already owns module startup, so ordinary function
-arguments make that dependency explicit.
+the browser, `App.tsx` owns the canvas mount lifecycle, so an effect that
+reads the canvas ref and calls the factory is the natural expression of that
+boundary.
 
-For now, `createApplication` only converts configuration into an application.
-A `run` function, launch and shutdown behavior, rendering, and events are
-deferred until their corresponding lessons give those operations real work.
+For now, `createApplication` only retains application identity and the injected
+canvas. It does not create a graphics context. A `run` function, launch and
+shutdown behavior, rendering, and events are deferred until their corresponding
+lessons give those operations real work.
 
 ## Inside-package layout (engine)
 
@@ -217,7 +223,7 @@ without notice. Sandbox (and later editor) imports only from
 ### 2026-07-25 - Engine-owned application factory with injected canvas
 
 - **Decision**: the engine exports `createApplication(config)`. The sandbox
-  calls it from `main.tsx` with application-specific configuration and its host
+  calls it from `App.tsx` with application-specific configuration and its host
   canvas.
 - **Rationale**: the engine should own how an application is constructed while
   the client owns what it configures and where the canvas lives in the DOM. The

@@ -208,18 +208,6 @@ without notice. Sandbox (and later editor) imports only from
   the right doc at the right time; mirrors how real projects
   organize documentation.
 
-### 2026-07-25 - Cross-tool command layout for AI agents
-
-- **Decision**: canonical command prompts live in `.agents/commands/`;
-  per-tool wrappers (`.claude/commands/`, `.codex/commands/`) each
-  contain a thin pointer to the canonical file.
-- **Rationale**: single source of truth for command logic; per-tool
-  files register the slash command in each tool without duplicating
-  the prompt. Adding a new tool means one 3-line file; changing
-  behavior means editing one file.
-- **Alternative**: duplicate the full prompt in each tool's directory.
-  Rejected because drift between copies is inevitable.
-
 ### 2026-07-25 - Engine-owned application factory with injected canvas
 
 - **Decision**: the engine exports `createApplication(config)`. The sandbox

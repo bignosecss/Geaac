@@ -4,8 +4,3 @@ build
 .vite
 coverage
 pnpm-lock.yaml
-
-# AI-tool slash commands are agent prompts, not project source.
-.agents/
-.claude/
-.codex/

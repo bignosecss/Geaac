@@ -20,7 +20,10 @@ export function App() {
     setApplication(next)
     next.run()
 
-    return () => next.close()
+    return () => {
+      next.close()
+      appRef.current = null
+    }
   }, [])
 
   return (

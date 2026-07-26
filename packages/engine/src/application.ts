@@ -10,7 +10,6 @@ export class Application {
   readonly canvas: HTMLCanvasElement
   private running = false
   private rAFId: number | null = null
-  private frameCount = 0
 
   constructor(config: ApplicationConfig) {
     this.name = config.name
@@ -25,7 +24,7 @@ export class Application {
     }
     this.running = true
     coreLogger.info('Main loop started')
-    this.rAFId = requestAnimationFrame((t) => this.tick(t))
+    this.rAFId = requestAnimationFrame(() => this.tick())
   }
 
   close(): void {
@@ -34,15 +33,11 @@ export class Application {
       this.rAFId = null
     }
     this.running = false
-    this.frameCount = 0
     coreLogger.info('Application closed')
   }
 
-  private tick(_time: DOMHighResTimeStamp): void {
-    void _time
-    coreLogger.trace(`Frame ${this.frameCount}`)
-    this.frameCount++
-    this.rAFId = requestAnimationFrame((t) => this.tick(t))
+  private tick(): void {
+    this.rAFId = requestAnimationFrame(() => this.tick())
   }
 }
 

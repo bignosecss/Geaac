@@ -70,8 +70,8 @@ consumer owns its DOM layout and supplies the canvas on which the engine will
 render. Explicit inputs keep API-neutral engine code testable in Node and the
 engine reusable across browser consumers.
 
-Status: scaffolded (public API, entry-point protocol, version module).
-Next: Application class with run/close lifecycle; events, input, or renderer.
+Status: events slice landed (bit-flag categories, EventType enum, blocking EventBus).
+Next: Application owns the bus; browser input wiring (`window`/`canvas` listeners); React `useEvent` hook in sandbox.
 
 ### `@geaac/sandbox`
 
@@ -171,9 +171,18 @@ grows, sub-folders appear when a concern has >= 3 modules:
 ```text
 packages/engine/src/
   index.ts             barrel; re-exports the public API only
+  application.ts       Application class with run/close lifecycle
+  version.ts           build-time version constant
   log/                 level-filtered logging: Logger, ConsoleLogger, coreLogger
+  events/              blocking EventBus + bit-flag categories + EventType enum
+    category.ts          bit-flag EventCategory enum + isInCategory helper
+    event-type.ts        sequential EventType enum + typed name registry
+    event.ts             abstract Event base class
+    dispatcher.ts        EventDispatcher<E> for instanceof-based dispatch
+    bus.ts               EventBus: on(EventType.X, h) and onCategory(bits, h)
+    application-events.ts, key-events.ts, mouse-events.ts,
+    mouse-button-events.ts   concrete events, grouped by source
   platform/            (later) abstractions over host environment
-  events/              (later) event bus + concrete events
   core/                (later) entity, component, system base types
 ```
 
@@ -256,6 +265,46 @@ without notice. Sandbox (and later editor) imports only from
 - **Structure**: the module lives at `packages/engine/src/log/` (3+ files, hit the
   sub-folder threshold from day one). Two loggers follow Hazel's core/client split
   so engine internals and application code can have independent level controls.
+
+### 2026-07-26 - Blocking event system with bit-flag categories
+
+- **Decision**: port Hazel's `Event` / `EventDispatcher` / layer model into
+  TypeScript as a blocking `EventBus` with bit-flag categories and a sequential
+  `EventType` enum. Lives at `packages/engine/src/events/`.
+- **Shape**:
+  - `category.ts` — bit-flag `EventCategory` (`None`, `EventCategoryApplication`,
+    `EventCategoryInput`, `EventCategoryKeyboard`, `EventCategoryMouse`,
+    `EventCategoryMouseButton`).
+  - `event-type.ts` — sequential `EventType` plus a `Record<EventTypeValue,
+string>` for the typed reverse lookup.
+  - `event.ts` — abstract `Event` base (`handled`, `eventType`, `categoryFlags`,
+    `toString`, `name`).
+  - `dispatcher.ts` — `EventDispatcher<E>` with `instanceof`-based
+    `dispatch(ctor, handler)`.
+  - `bus.ts` — `EventBus` with `on(EventType.X, h)`, `onCategory(bits, h)`,
+    blocking `publish(event)`.
+  - `application-events.ts`, `key-events.ts`, `mouse-events.ts`,
+    `mouse-button-events.ts` — concrete events grouped by source.
+- **Why blocking synchronous**: matches Hazel, debuggable call stacks, bounded
+  event rate per frame. A slow handler stalls its own frame, not the bus.
+- **Why `as const` instead of native `enum`**: native TS enums have weird
+  runtime semantics and bundler quirks; `as const` is idiomatic modern TS and
+  lets the value type derive as `(typeof X)[keyof typeof X]` automatically.
+- **Why `EventType` even though TS has `instanceof`**: in C++ Hazel needs the
+  enum because templates use static type comparison. In TS `instanceof` already
+  does that job (the dispatcher uses it). The enum still earns its place as the
+  bus's typed subscription key — `bus.on(EventType.KeyPressed, h)` is
+  typo-proof, autocomplete-able, and a single source of truth for every event
+  the engine can produce.
+- **Why the `EventTypeName` `Record`**: TS cannot statically prove that
+  `EventType[event.eventType]` is safe to index (object keys are string
+  literals, not numbers). `Record<EventTypeValue, string>` forces the compiler
+  to verify every enum member has a name — adding a new event type without
+  naming it becomes a typecheck error, not a runtime `'Unknown'`.
+- **Scope**: events are pure data + dispatch logic with zero browser API use,
+  so the module stays Node-testable. Browser input wiring (`window`/`canvas`
+  listeners, `Application`-owned bus, React `useEvent` hook) is intentionally
+  the next slice.
 
 ## Open questions
 

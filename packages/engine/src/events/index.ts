@@ -1,16 +1,12 @@
 export {
-  EventCategoryApplication,
-  EventCategoryInput,
-  EventCategoryKeyboard,
-  EventCategoryMouse,
-  EventCategoryMouseButton,
-  EventCategoryNone,
+  EventCategory,
   isInCategory,
-  type EventCategoryBits,
+  type EventCategoryValue,
 } from '#engine/events/category'
 export { Event } from '#engine/events/event'
 export { EventDispatcher } from '#engine/events/dispatcher'
 export { EventBus, type EventHandler } from '#engine/events/bus'
+export { EventType, eventTypeName, type EventTypeValue } from '#engine/events/event-type'
 export {
   AppRenderEvent,
   AppTickEvent,
@@ -27,4 +23,3 @@ export {
   MouseButtonPressedEvent,
   MouseButtonReleasedEvent,
 } from '#engine/events/mouse-button-events'
-

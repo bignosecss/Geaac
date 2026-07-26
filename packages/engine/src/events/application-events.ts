@@ -1,12 +1,11 @@
-import {
-  EventCategoryApplication,
-  type EventCategoryBits,
-} from '#engine/events/category'
+import { EventCategory, type EventCategoryValue } from '#engine/events/category'
 import { Event } from '#engine/events/event'
+import { EventType, type EventTypeValue } from '#engine/events/event-type'
 
 export class WindowResizeEvent extends Event {
-  public readonly type = 'WindowResize'
-  public readonly categoryFlags: EventCategoryBits = EventCategoryApplication
+  public readonly eventType: EventTypeValue = EventType.WindowResize
+  public readonly categoryFlags: EventCategoryValue =
+    EventCategory.EventCategoryApplication
 
   constructor(
     public readonly width: number,
@@ -21,8 +20,9 @@ export class WindowResizeEvent extends Event {
 }
 
 export class WindowCloseEvent extends Event {
-  public readonly type = 'WindowClose'
-  public readonly categoryFlags: EventCategoryBits = EventCategoryApplication
+  public readonly eventType: EventTypeValue = EventType.WindowClose
+  public readonly categoryFlags: EventCategoryValue =
+    EventCategory.EventCategoryApplication
 
   public toString(): string {
     return 'WindowClose'
@@ -30,8 +30,9 @@ export class WindowCloseEvent extends Event {
 }
 
 export class AppTickEvent extends Event {
-  public readonly type = 'AppTick'
-  public readonly categoryFlags: EventCategoryBits = EventCategoryApplication
+  public readonly eventType: EventTypeValue = EventType.AppTick
+  public readonly categoryFlags: EventCategoryValue =
+    EventCategory.EventCategoryApplication
 
   public toString(): string {
     return 'AppTick'
@@ -39,8 +40,9 @@ export class AppTickEvent extends Event {
 }
 
 export class AppRenderEvent extends Event {
-  public readonly type = 'AppRender'
-  public readonly categoryFlags: EventCategoryBits = EventCategoryApplication
+  public readonly eventType: EventTypeValue = EventType.AppRender
+  public readonly categoryFlags: EventCategoryValue =
+    EventCategory.EventCategoryApplication
 
   public toString(): string {
     return 'AppRender'

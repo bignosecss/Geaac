@@ -1,18 +1,25 @@
-// Bit-flag event categories. Mirrors Hazel's `enum class EventCategory`,
-// using individual bits so a single integer can express membership in
-// multiple categories at once (e.g. mouse-button events belong to both
-// Input and Mouse and MouseButton).
+// Bit-flag event categories, modelled on Hazel's `enum class EventCategory`.
+// Each member is a single bit so a single integer can express membership in
+// multiple groups at once (e.g. a mouse-button event belongs to Input, Mouse,
+// and MouseButton simultaneously). Subscribers filter with `isInCategory`.
+//
+// Usage: `EventCategory.EventCategoryApplication`,
+// `EventCategory.EventCategoryInput | EventCategory.EventCategoryMouse`.
+export const EventCategory = {
+  None: 0,
+  EventCategoryApplication: 1 << 0,
+  EventCategoryInput: 1 << 1,
+  EventCategoryKeyboard: 1 << 2,
+  EventCategoryMouse: 1 << 3,
+  EventCategoryMouseButton: 1 << 4,
+} as const
 
-export type EventCategoryBits = number
+export type EventCategoryValue = (typeof EventCategory)[keyof typeof EventCategory]
 
-export const EventCategoryNone = 0
-export const EventCategoryApplication = 1 << 0
-export const EventCategoryInput = 1 << 1
-export const EventCategoryKeyboard = 1 << 2
-export const EventCategoryMouse = 1 << 3
-export const EventCategoryMouseButton = 1 << 4
-
-export function isInCategory(flags: EventCategoryBits, category: EventCategoryBits): boolean {
+export function isInCategory(
+  flags: EventCategoryValue,
+  category: EventCategoryValue,
+): boolean {
   return (flags & category) !== 0
 }
 

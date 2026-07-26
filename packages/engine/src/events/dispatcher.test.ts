@@ -1,30 +1,31 @@
 import { describe, expect, it } from 'vitest'
-import {
-  EventCategoryInput,
-  EventCategoryKeyboard,
-  isInCategory,
-} from '#engine/events/category'
+import { EventCategory, isInCategory } from '#engine/events/category'
 import { EventDispatcher } from '#engine/events/dispatcher'
 import { KeyPressedEvent } from '#engine/events/key-events'
 import { MouseMovedEvent } from '#engine/events/mouse-events'
 
 describe('isInCategory', () => {
   it('detects a set bit', () => {
-    expect(isInCategory(EventCategoryKeyboard, EventCategoryKeyboard)).toBe(true)
+    expect(
+      isInCategory(EventCategory.EventCategoryKeyboard, EventCategory.EventCategoryKeyboard),
+    ).toBe(true)
   })
 
   it('detects a missing bit', () => {
-    expect(isInCategory(EventCategoryKeyboard, EventCategoryInput)).toBe(false)
+    expect(
+      isInCategory(EventCategory.EventCategoryKeyboard, EventCategory.EventCategoryInput),
+    ).toBe(false)
   })
 
   it('detects one of several OR-ed bits', () => {
-    const both = EventCategoryInput | EventCategoryKeyboard
-    expect(isInCategory(both, EventCategoryInput)).toBe(true)
-    expect(isInCategory(both, EventCategoryKeyboard)).toBe(true)
+    const both =
+      EventCategory.EventCategoryInput | EventCategory.EventCategoryKeyboard
+    expect(isInCategory(both, EventCategory.EventCategoryInput)).toBe(true)
+    expect(isInCategory(both, EventCategory.EventCategoryKeyboard)).toBe(true)
   })
 
   it('treats zero as matching no category', () => {
-    expect(isInCategory(0, EventCategoryKeyboard)).toBe(false)
+    expect(isInCategory(0, EventCategory.EventCategoryKeyboard)).toBe(false)
   })
 })
 

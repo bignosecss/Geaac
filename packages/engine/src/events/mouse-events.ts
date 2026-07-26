@@ -1,14 +1,11 @@
-import {
-  EventCategoryInput,
-  EventCategoryMouse,
-  type EventCategoryBits,
-} from '#engine/events/category'
+import { EventCategory, type EventCategoryValue } from '#engine/events/category'
 import { Event } from '#engine/events/event'
+import { EventType, type EventTypeValue } from '#engine/events/event-type'
 
 export class MouseMovedEvent extends Event {
-  public readonly type = 'MouseMoved'
-  public readonly categoryFlags: EventCategoryBits =
-    EventCategoryInput | EventCategoryMouse
+  public readonly eventType: EventTypeValue = EventType.MouseMoved
+  public readonly categoryFlags: EventCategoryValue =
+    EventCategory.EventCategoryInput | EventCategory.EventCategoryMouse
 
   constructor(
     public readonly x: number,
@@ -23,9 +20,9 @@ export class MouseMovedEvent extends Event {
 }
 
 export class MouseScrolledEvent extends Event {
-  public readonly type = 'MouseScrolled'
-  public readonly categoryFlags: EventCategoryBits =
-    EventCategoryInput | EventCategoryMouse
+  public readonly eventType: EventTypeValue = EventType.MouseScrolled
+  public readonly categoryFlags: EventCategoryValue =
+    EventCategory.EventCategoryInput | EventCategory.EventCategoryMouse
 
   constructor(
     public readonly xOffset: number,

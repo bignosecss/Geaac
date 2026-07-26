@@ -1,16 +1,13 @@
-import {
-  EventCategoryInput,
-  EventCategoryKeyboard,
-  type EventCategoryBits,
-} from '#engine/events/category'
+import { EventCategory, type EventCategoryValue } from '#engine/events/category'
 import { Event } from '#engine/events/event'
+import { EventType, type EventTypeValue } from '#engine/events/event-type'
 
 export class KeyPressedEvent extends Event {
-  public readonly type = 'KeyPressed'
+  public readonly eventType: EventTypeValue = EventType.KeyPressed
   // Keyboard events belong to both Input and Keyboard so subscribers can
   // filter on either granularity.
-  public readonly categoryFlags: EventCategoryBits =
-    EventCategoryInput | EventCategoryKeyboard
+  public readonly categoryFlags: EventCategoryValue =
+    EventCategory.EventCategoryInput | EventCategory.EventCategoryKeyboard
 
   constructor(
     public readonly keyCode: number,
@@ -25,9 +22,9 @@ export class KeyPressedEvent extends Event {
 }
 
 export class KeyReleasedEvent extends Event {
-  public readonly type = 'KeyReleased'
-  public readonly categoryFlags: EventCategoryBits =
-    EventCategoryInput | EventCategoryKeyboard
+  public readonly eventType: EventTypeValue = EventType.KeyReleased
+  public readonly categoryFlags: EventCategoryValue =
+    EventCategory.EventCategoryInput | EventCategory.EventCategoryKeyboard
 
   constructor(public readonly keyCode: number) {
     super()
@@ -42,9 +39,9 @@ export class KeyReleasedEvent extends Event {
 // (post-layout, post-modifier). Useful for text-input-style handlers that
 // don't want raw scan codes.
 export class KeyTypedEvent extends Event {
-  public readonly type = 'KeyTyped'
-  public readonly categoryFlags: EventCategoryBits =
-    EventCategoryInput | EventCategoryKeyboard
+  public readonly eventType: EventTypeValue = EventType.KeyTyped
+  public readonly categoryFlags: EventCategoryValue =
+    EventCategory.EventCategoryInput | EventCategory.EventCategoryKeyboard
 
   constructor(public readonly keyCode: number) {
     super()

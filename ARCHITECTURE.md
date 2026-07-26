@@ -170,6 +170,7 @@ grows, sub-folders appear when a concern has >= 3 modules:
 ```text
 packages/engine/src/
   index.ts             barrel; re-exports the public API only
+  log/                 level-filtered logging: Logger, ConsoleLogger, coreLogger
   platform/            (later) abstractions over host environment
   events/              (later) event bus + concrete events
   core/                (later) entity, component, system base types
@@ -226,6 +227,19 @@ without notice. Sandbox (and later editor) imports only from
 - **Scope**: `Application` contains only identity and the injected canvas;
   `createApplication` does not initialize a graphics API. No `run` operation
   exists until there is lifecycle behavior to run.
+
+### 2026-07-26 - Thin logging abstraction over console
+
+- **Decision**: no third-party logging library. A `Logger` interface + `ConsoleLogger`
+  implementation wraps `console.*` behind ~50 lines of engine-owned code. The engine
+  exports a singleton `coreLogger` and a `createLogger` factory for consumers.
+- **Rationale**: browsers don't need file sinks, JSON shipping, or async logging —
+  console *is* the sink. A thin wrapper gives us name tagging, level filtering,
+  and dependency insulation without the weight of a Node-oriented logger.
+- **Structure**: the module lives at `packages/engine/src/log/` (3+ files, hit the
+  sub-folder threshold from day one). Two loggers follow Hazel's core/client split
+  so engine internals and application code can have independent level controls.
+
 
 ## Open questions
 

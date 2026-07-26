@@ -71,7 +71,7 @@ render. Explicit inputs keep API-neutral engine code testable in Node and the
 engine reusable across browser consumers.
 
 Status: scaffolded (public API, entry-point protocol, version module).
-Next: first real runtime slice.
+Next: Application class with run/close lifecycle; events, input, or renderer.
 
 ### `@geaac/sandbox`
 
@@ -156,10 +156,11 @@ the browser, `App.tsx` owns the canvas mount lifecycle, so an effect that
 reads the canvas ref and calls the factory is the natural expression of that
 boundary.
 
-For now, `createApplication` only retains application identity and the injected
-canvas. It does not create a graphics context. A `run` function, launch and
-shutdown behavior, rendering, and events are deferred until their corresponding
-lessons give those operations real work.
+The `Application` class constructor initialises the logger and captures the
+host canvas. `app.run()` begins a requestAnimationFrame loop (the browser
+equivalent of Hazel's `while (m_Running)`). `app.close()` cancels the loop
+and resets state, letting React's useEffect cleanup tear it down on unmount.
+Rendering, events, and input remain deferred.
 
 ## Inside-package layout (engine)
 
@@ -228,18 +229,33 @@ without notice. Sandbox (and later editor) imports only from
   `createApplication` does not initialize a graphics API. No `run` operation
   exists until there is lifecycle behavior to run.
 
+### 2026-07-26 - Application becomes a class with run/close lifecycle
+
+- **Decision**: Application was refactored from a plain type + factory to a
+  class with `run()` and `close()` methods. The constructor initializes the
+  logger, `run()` starts a requestAnimationFrame loop, and `close()` tears it
+  down.
+- **Rationale**: Hazel's Application owns its lifecycle (`m_Running` flag,
+  `Run()` method). A class naturally encapsulates that state (`running`,
+  `rAFId`, `frameCount`). In the browser, `run()` is non-blocking and delegates
+  the loop to rAF rather than blocking the main thread. The `close()` method
+  mirrors the destructor pattern and lets React's `useEffect` cleanup tear
+  down the loop on unmount.
+- **Scope**: `run()` only sets up the rAF loop and logs frame traces. No event
+  polling, layer updates, or rendering yet. `close()` cancels the rAF and
+  resets state. Calling `run()` after `close()` re-enters the loop.
+
 ### 2026-07-26 - Thin logging abstraction over console
 
 - **Decision**: no third-party logging library. A `Logger` interface + `ConsoleLogger`
   implementation wraps `console.*` behind ~50 lines of engine-owned code. The engine
   exports a singleton `coreLogger` and a `createLogger` factory for consumers.
 - **Rationale**: browsers don't need file sinks, JSON shipping, or async logging —
-  console *is* the sink. A thin wrapper gives us name tagging, level filtering,
+  console _is_ the sink. A thin wrapper gives us name tagging, level filtering,
   and dependency insulation without the weight of a Node-oriented logger.
 - **Structure**: the module lives at `packages/engine/src/log/` (3+ files, hit the
   sub-folder threshold from day one). Two loggers follow Hazel's core/client split
   so engine internals and application code can have independent level controls.
-
 
 ## Open questions
 

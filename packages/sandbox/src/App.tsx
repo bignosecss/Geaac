@@ -13,15 +13,14 @@ export function App() {
 
   useEffect(() => {
     const canvas = canvasRef.current
-    if (!canvas) {
-      return
-    }
-    if (appRef.current) {
-      return
-    }
+    if (!canvas) return
+    if (appRef.current) return
     const next = createApplication({ name: APP_NAME, canvas })
     appRef.current = next
     setApplication(next)
+    next.run()
+
+    return () => next.close()
   }, [])
 
   return (

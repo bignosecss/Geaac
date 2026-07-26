@@ -37,4 +37,3 @@ export class MouseButtonReleasedEvent extends Event {
     return `MouseButtonReleased: ${this.button}`
   }
 }
-

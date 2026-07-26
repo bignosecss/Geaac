@@ -103,4 +103,3 @@ describe('EventBus', () => {
     expect(() => bus.publish(new KeyPressedEvent(65, 1))).not.toThrow()
   })
 })
-

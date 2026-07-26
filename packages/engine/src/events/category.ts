@@ -16,10 +16,6 @@ export const EventCategory = {
 
 export type EventCategoryValue = (typeof EventCategory)[keyof typeof EventCategory]
 
-export function isInCategory(
-  flags: EventCategoryValue,
-  category: EventCategoryValue,
-): boolean {
+export function isInCategory(flags: EventCategoryValue, category: EventCategoryValue): boolean {
   return (flags & category) !== 0
 }
-

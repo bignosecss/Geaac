@@ -51,4 +51,3 @@ export class KeyTypedEvent extends Event {
     return `KeyTyped: ${this.keyCode}`
   }
 }
-

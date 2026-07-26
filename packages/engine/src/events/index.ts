@@ -1,8 +1,4 @@
-export {
-  EventCategory,
-  isInCategory,
-  type EventCategoryValue,
-} from '#engine/events/category'
+export { EventCategory, isInCategory, type EventCategoryValue } from '#engine/events/category'
 export { Event } from '#engine/events/event'
 export { EventDispatcher } from '#engine/events/dispatcher'
 export { EventBus, type EventHandler } from '#engine/events/bus'
@@ -13,11 +9,7 @@ export {
   WindowCloseEvent,
   WindowResizeEvent,
 } from '#engine/events/application-events'
-export {
-  KeyPressedEvent,
-  KeyReleasedEvent,
-  KeyTypedEvent,
-} from '#engine/events/key-events'
+export { KeyPressedEvent, KeyReleasedEvent, KeyTypedEvent } from '#engine/events/key-events'
 export { MouseMovedEvent, MouseScrolledEvent } from '#engine/events/mouse-events'
 export {
   MouseButtonPressedEvent,

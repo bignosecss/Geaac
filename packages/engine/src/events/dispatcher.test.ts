@@ -18,8 +18,7 @@ describe('isInCategory', () => {
   })
 
   it('detects one of several OR-ed bits', () => {
-    const both =
-      EventCategory.EventCategoryInput | EventCategory.EventCategoryKeyboard
+    const both = EventCategory.EventCategoryInput | EventCategory.EventCategoryKeyboard
     expect(isInCategory(both, EventCategory.EventCategoryInput)).toBe(true)
     expect(isInCategory(both, EventCategory.EventCategoryKeyboard)).toBe(true)
   })
@@ -68,4 +67,3 @@ describe('EventDispatcher', () => {
     expect(event.handled).toBe(false)
   })
 })
-

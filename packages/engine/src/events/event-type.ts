@@ -42,4 +42,3 @@ const EventTypeName: Record<EventTypeValue, string> = {
 export function eventTypeName(type: EventTypeValue): string {
   return EventTypeName[type]
 }
-

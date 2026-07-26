@@ -4,8 +4,7 @@ import { EventType, type EventTypeValue } from '#engine/events/event-type'
 
 export class WindowResizeEvent extends Event {
   public readonly eventType: EventTypeValue = EventType.WindowResize
-  public readonly categoryFlags: EventCategoryValue =
-    EventCategory.EventCategoryApplication
+  public readonly categoryFlags: EventCategoryValue = EventCategory.EventCategoryApplication
 
   constructor(
     public readonly width: number,
@@ -21,8 +20,7 @@ export class WindowResizeEvent extends Event {
 
 export class WindowCloseEvent extends Event {
   public readonly eventType: EventTypeValue = EventType.WindowClose
-  public readonly categoryFlags: EventCategoryValue =
-    EventCategory.EventCategoryApplication
+  public readonly categoryFlags: EventCategoryValue = EventCategory.EventCategoryApplication
 
   public toString(): string {
     return 'WindowClose'
@@ -31,8 +29,7 @@ export class WindowCloseEvent extends Event {
 
 export class AppTickEvent extends Event {
   public readonly eventType: EventTypeValue = EventType.AppTick
-  public readonly categoryFlags: EventCategoryValue =
-    EventCategory.EventCategoryApplication
+  public readonly categoryFlags: EventCategoryValue = EventCategory.EventCategoryApplication
 
   public toString(): string {
     return 'AppTick'
@@ -41,11 +38,9 @@ export class AppTickEvent extends Event {
 
 export class AppRenderEvent extends Event {
   public readonly eventType: EventTypeValue = EventType.AppRender
-  public readonly categoryFlags: EventCategoryValue =
-    EventCategory.EventCategoryApplication
+  public readonly categoryFlags: EventCategoryValue = EventCategory.EventCategoryApplication
 
   public toString(): string {
     return 'AppRender'
   }
 }
-

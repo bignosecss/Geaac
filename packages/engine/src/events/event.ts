@@ -21,4 +21,3 @@ export abstract class Event {
     return eventTypeName(this.eventType)
   }
 }
-

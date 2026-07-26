@@ -35,4 +35,3 @@ export class MouseScrolledEvent extends Event {
     return `MouseScrolled: ${this.xOffset}, ${this.yOffset}`
   }
 }
-

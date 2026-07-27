@@ -1,0 +1,417 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Event Flow · GEAAC Engine</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=Outfit:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<style>
+  :root {
+    --bg: #f7f5f0;
+    --card: #ffffff;
+    --line: #e9e3d6;
+    --line-soft: #f0eadb;
+    --text: #14171e;
+    --text-mid: #3a4256;
+    --text-muted: #7c7a72;
+    --primary: #2f6f5e;
+    --primary-soft: #2f6f5e12;
+    --accent: #c97b3f;
+    --warn: #b06367;
+    --warn-soft: #b0636710;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Outfit', system-ui, -apple-system, sans-serif;
+    font-size: 15px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  body::before, body::after {
+    content: ""; position: fixed; pointer-events: none; z-index: 0;
+    width: 520px; height: 520px; border-radius: 50%;
+    filter: blur(90px); opacity: .5;
+  }
+  body::before { top: -220px; right: -120px; background: radial-gradient(circle, #2f6f5e20 0%, transparent 70%); }
+  body::after  { bottom: -220px; left: -120px;  background: radial-gradient(circle, #c97b3f1c 0%, transparent 70%); }
+
+  main { position: relative; z-index: 1; max-width: 960px; margin: 0 auto; padding: 56px 28px 96px; }
+
+  /* ----- Header ----- */
+  .eyebrow {
+    display: inline-block; font-size: 12px; font-weight: 600;
+    letter-spacing: .12em; text-transform: uppercase;
+    color: var(--primary); margin-bottom: 18px;
+    padding: 4px 10px; background: var(--primary-soft); border-radius: 999px;
+  }
+  h1 {
+    font-family: 'DM Serif Display', serif;
+    font-weight: 400; font-size: 38px; line-height: 1.15;
+    letter-spacing: -.01em; margin: 0 0 16px;
+  }
+  .lede { color: var(--text-mid); font-size: 17px; line-height: 1.55; max-width: 640px; margin: 0 0 40px; }
+
+  /* ----- Sections ----- */
+  section { margin-top: 48px; }
+  h2 {
+    font-family: 'DM Serif Display', serif; font-weight: 400;
+    font-size: 24px; line-height: 1.2; margin: 0 0 14px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  h2 .num {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 28px; height: 28px; border-radius: 50%;
+    background: var(--primary-soft); color: var(--primary);
+    font-family: 'Outfit', sans-serif; font-size: 13px; font-weight: 600;
+  }
+  h3 {
+    font-size: 15px; font-weight: 600; margin: 0 0 8px;
+    color: var(--text); letter-spacing: -.005em;
+  }
+  p { margin: 0 0 12px; color: var(--text-mid); }
+  p strong { color: var(--text); font-weight: 600; }
+  code, .mono { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 13px; }
+  code { background: #ede7d4; color: #4a3a2a; padding: 1px 6px; border-radius: 4px; }
+  pre {
+    background: #1a1a2e; color: #e8e3d3; border-radius: 12px;
+    padding: 18px 20px; overflow-x: auto; line-height: 1.55;
+    font-size: 13px; margin: 12px 0 4px;
+    box-shadow: 0 2px 8px rgba(0,0,0,.04);
+  }
+  pre code { background: transparent; color: inherit; padding: 0; font-size: 13px; }
+
+  /* ----- Cards ----- */
+  .card {
+    background: var(--card); border: 1px solid var(--line);
+    border-radius: 16px; padding: 22px 24px;
+    box-shadow: 0 2px 8px rgba(0,0,0,.03);
+  }
+  .card + .card { margin-top: 14px; }
+
+  /* ----- Tiles (4 layers) ----- */
+  .tiles {
+    display: grid; grid-template-columns: repeat(4, 1fr);
+    gap: 14px; margin-top: 18px;
+  }
+  .tile {
+    background: var(--card); border: 1px solid var(--line);
+    border-radius: 14px; padding: 16px 16px 18px;
+    box-shadow: 0 2px 8px rgba(0,0,0,.03);
+    transition: transform .2s ease, box-shadow .2s ease;
+  }
+  .tile:hover { transform: translateY(-2px); box-shadow: 0 6px 18px rgba(0,0,0,.06); }
+  .tile .badge {
+    display: inline-block; font-size: 10px; font-weight: 700;
+    letter-spacing: .12em; text-transform: uppercase;
+    color: var(--primary); margin-bottom: 8px;
+  }
+  .tile h3 { font-size: 15px; margin-bottom: 4px; }
+  .tile p  { font-size: 13px; line-height: 1.5; color: var(--text-muted); margin: 0; }
+  .tile .icon { color: var(--primary); margin-bottom: 10px; }
+
+  /* ----- Diagram wrapper ----- */
+  .diagram {
+    background: var(--card); border: 1px solid var(--line);
+    border-radius: 16px; padding: 28px 24px;
+    box-shadow: 0 2px 8px rgba(0,0,0,.03);
+    overflow-x: auto;
+  }
+  .mermaid { display: flex; justify-content: center; font-family: 'Outfit', sans-serif !important; }
+
+  /* ----- Legend ----- */
+  .legend {
+    display: flex; flex-wrap: wrap; gap: 18px 28px;
+    margin-top: 16px; padding: 14px 18px;
+    background: var(--card); border: 1px dashed var(--line);
+    border-radius: 12px; font-size: 13px; color: var(--text-muted);
+  }
+  .legend .item { display: inline-flex; align-items: center; gap: 8px; }
+  .legend .swatch { width: 14px; height: 14px; border-radius: 4px; }
+
+  /* ----- Step list (handled) ----- */
+  .steps { list-style: none; padding: 0; margin: 14px 0 0; }
+  .steps li {
+    display: grid; grid-template-columns: 28px 1fr;
+    gap: 14px; padding: 10px 0;
+    border-bottom: 1px dashed var(--line);
+  }
+  .steps li:last-child { border-bottom: none; }
+  .steps .n {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 24px; height: 24px; border-radius: 50%;
+    background: var(--primary-soft); color: var(--primary);
+    font-weight: 600; font-size: 12px;
+  }
+  .steps .body { color: var(--text-mid); }
+  .steps .body code { font-size: 12px; }
+
+  /* ----- Loop diagram (layer as publisher) ----- */
+  .loop {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 14px; margin-top: 16px;
+  }
+  .loop .card { padding: 18px 20px; }
+  .loop .label {
+    font-size: 11px; font-weight: 700; letter-spacing: .12em;
+    text-transform: uppercase; color: var(--accent); margin-bottom: 6px;
+  }
+  .loop .icon { color: var(--accent); }
+
+  /* ----- Quote ----- */
+  .quote {
+    border-left: 3px solid var(--primary);
+    padding: 6px 0 6px 18px; margin: 16px 0;
+    color: var(--text-mid); font-style: italic;
+  }
+
+  /* ----- Footer ----- */
+  footer { margin-top: 64px; padding-top: 24px; border-top: 1px solid var(--line); color: var(--text-muted); font-size: 13px; }
+
+  /* ----- Responsive ----- */
+  @media (max-width: 760px) {
+    main { padding: 40px 20px 80px; }
+    h1 { font-size: 30px; }
+    .tiles { grid-template-columns: 1fr 1fr; }
+    .loop { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 460px) {
+    .tiles { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<main>
+
+  <span class="eyebrow">GEAAC · Engine Architecture</span>
+  <h1>Event Flow</h1>
+  <p class="lede">从画布上的一个按键，到被三层订阅者拆开处理，中间到底发生了什么。这页把整个数据流拆成 4 层：Publisher、EventBus、Subscriber、Dispatcher。</p>
+
+  <!-- 主架构图 -->
+  <section>
+    <h2><span class="num">1</span>主流程</h2>
+    <div class="diagram">
+      <div class="mermaid">
+flowchart TB
+    RAW["raw events: key, mouse, tick<br/>OS or Browser"]
+
+    subgraph PUB["01 Publisher: any event source"]
+        WIN["Window input<br/>keyCode, x, y, w, h"]
+        TICK["AppTick timer"]
+        ASSET["Asset loader done"]
+    end
+
+    RAW --> WIN
+
+    subgraph BUS["02 EventBus: dispatcher"]
+        BYT["byType Map: exact match"]
+        BYC["byCategory Set: fuzzy match"]
+    end
+
+    WIN -->|"publish"| BYT
+    WIN -->|"publish"| BYC
+    TICK -->|"publish"| BYT
+    ASSET -->|"publish"| BYT
+
+    subgraph LYR["03 Subscribers: fan-out"]
+        L1["InputLayer"]
+        L2["UILayer"]
+        L3["DebugLayer"]
+    end
+
+    BYT -->|"type hit"| L1
+    BYT -->|"type hit"| L2
+    BYT -->|"type hit"| L3
+    BYC -->|"category hit"| L1
+    BYC -->|"category hit"| L2
+    BYC -->|"category hit"| L3
+
+    subgraph DISP["04 EventDispatcher: type unpacker per layer"]
+        D1["dispatch KeyPressedEvent then fn1"]
+        D2["dispatch WindowResizeEvent then fn2"]
+    end
+
+    L1 --> D1
+    L2 --> D2
+
+    H1["fn1: log key, return true"]
+    H2["fn2: relayout, return false"]
+    D1 -->|"instanceof match"| H1
+    D2 -->|"instanceof match"| H2
+
+    H1 -.->|"handled = true: bus short-circuits"| BYT
+    H2 -.->|"continue: propagates"| L3
+
+    classDef pub fill:#fdecd9,stroke:#c97b3f,color:#5a3a1f;
+    classDef bus fill:#d8ebe4,stroke:#2f6f5e,color:#1d4a3e;
+    classDef lyr fill:#ffffff,stroke:#e9e3d6,color:#14171e;
+    classDef disp fill:#f4dada,stroke:#b06367,color:#6b3236;
+    classDef raw fill:#ede7d4,stroke:#c4b896,color:#4a3a2a;
+
+    class WIN,TICK,ASSET pub;
+    class BYT,BYC bus;
+    class L1,L2,L3 lyr;
+    class D1,D2,H1,H2 disp;
+    class RAW raw;
+      </div>
+    </div>
+    <div class="legend">
+      <div class="item"><span class="swatch" style="background:#c97b3f33;border:1px solid #c97b3f"></span>Publisher · 产生事件</div>
+      <div class="item"><span class="swatch" style="background:#2f6f5e22;border:1px solid #2f6f5e"></span>EventBus · 路由</div>
+      <div class="item"><span class="swatch" style="background:#fff;border:1px solid #e9e3d6"></span>Layer · 订阅者</div>
+      <div class="item"><span class="swatch" style="background:#b0636715;border:1px solid #b06367"></span>Dispatcher · 类型拆包</div>
+    </div>
+  </section>
+
+  <!-- 4 层职责 -->
+  <section>
+    <h2><span class="num">2</span>4 层各自干什么</h2>
+    <div class="tiles">
+      <div class="tile">
+        <div class="icon">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
+        </div>
+        <div class="badge">Publisher</div>
+        <h3>制造事件</h3>
+        <p>把外部信号包成 <code class="mono">Event</code> 子类塞给 bus。不只是 window，timer / asset / network 都能发。</p>
+      </div>
+      <div class="tile">
+        <div class="icon">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M2 12h20"/></svg>
+        </div>
+        <div class="badge">EventBus</div>
+        <h3>路由派送</h3>
+        <p>维护 <code class="mono">byType</code> + <code class="mono">byCategory</code> 两份订阅表，fan-out 给所有命中者；<code class="mono">handled</code> 时短路。</p>
+      </div>
+      <div class="tile">
+        <div class="icon">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+        </div>
+        <div class="badge">Layer</div>
+        <h3>订阅入口</h3>
+        <p>每个 layer 暴露 <code class="mono">onEvent(event: Event)</code>。收到通用 Event，内部用 dispatcher 拆。</p>
+      </div>
+      <div class="tile">
+        <div class="icon">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+        </div>
+        <div class="badge">Dispatcher</div>
+        <h3>类型匹配</h3>
+        <p><code class="mono">dispatch(ctor, fn)</code>：是这种类型就调 fn，TS 自动缩窄；fn 返回 true 标 handled。</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- handled 截断 -->
+  <section>
+    <h2><span class="num">3</span>handled 怎么截断的</h2>
+    <p>bus 在 <code class="mono">publish</code> 的时候按顺序触发匹配到的 handler，<strong>任何一个把 <code class="mono">event.handled</code> 设为 true，bus 就立刻 return</strong>，不再继续推给剩下的订阅者。</p>
+    <div class="card">
+      <ol class="steps">
+        <li>
+          <span class="n">1</span>
+          <span class="body"><code class="mono">bus.publish(keyPressedEvent)</code> · 找到 <code class="mono">byType.get(KeyPressed)</code> 里的三个 handler 集合。</span>
+        </li>
+        <li>
+          <span class="n">2</span>
+          <span class="body">遍历 <code class="mono">byType</code>：调用 InputLayer.handler → 它内部 dispatcher 命中 → 调 fn → fn 返回 true → <code class="mono">event.handled = true</code>。</span>
+        </li>
+        <li>
+          <span class="n">3</span>
+          <span class="body">bus 看到 <code class="mono">handled === true</code>，跳出 type 循环。</span>
+        </li>
+        <li>
+          <span class="n">4</span>
+          <span class="body"><code class="mono">byCategory</code> 那一轮 <strong>不再执行</strong>。DebugLayer 这次就看不到这次按键了。</span>
+        </li>
+        <li>
+          <span class="n">5</span>
+          <span class="body">如果 fn 返回 false：<code class="mono">handled</code> 保持 false，bus 继续推给下一个 subscriber。</span>
+        </li>
+      </ol>
+    </div>
+    <p class="quote">设计意图：UI layer 通常应该"消费掉"自己的事件，避免被调试层 / 日志层重复处理。但 logging 这种横切关注点，handler 必须返回 false，否则系统会"丢事件"。</p>
+  </section>
+
+  <!-- Layer 既是 subscriber 也是 publisher -->
+  <section>
+    <h2><span class="num">4</span>Layer 同时是订阅者和发布者</h2>
+    <p>上图的 publisher 框里没画 layer，但这是事件系统能 scale 的关键 —— <strong>layer 可以处理完事件后再 emit 新事件</strong>，bus 完全不区分 source。</p>
+    <div class="loop">
+      <div class="card">
+        <div class="label">作为 Subscriber</div>
+        <h3>收 bus 推来的 event</h3>
+        <p>在 <code class="mono">onEvent</code> 里用 dispatcher 拆类型 → 命中后跑业务逻辑。InputLayer 听到 <code class="mono">KeyPressedEvent</code>，把按键状态写进自己的 model。</p>
+      </div>
+      <div class="card">
+        <div class="label">作为 Publisher</div>
+        <h3>处理完 emit 新 event</h3>
+        <p>同样是这个 InputLayer，可以在状态变更后 <code class="mono">bus.publish(new InputStateChangedEvent(...))</code>。下游的 UI / Analytics layer 订阅新事件即可。</p>
+      </div>
+    </div>
+    <p>这就是为什么我们前面说 <strong>bus 是事件汇聚的中转站，不是 window 专属管道</strong>。publisher / subscriber 是相对概念，每跳一次 hop 都是一次 publish。</p>
+  </section>
+
+  <!-- 标准用法 -->
+  <section>
+    <h2><span class="num">5</span>Layer 端的标准 dispatch 写法</h2>
+    <p>这是 <code class="mono">packages/engine/src/events/dispatcher.ts</code> 的实际用法模板，将来 layer 系统落地时直接照搬：</p>
+<pre><code>class MyLayer {
+  onEvent(event: Event): void {
+    const dispatcher = new EventDispatcher(event)
+
+    dispatcher.dispatch(KeyPressedEvent, (e) =&gt; {
+      console.log('key', e.keyCode, 'repeat', e.repeatCount)
+      return true   // 消费掉，bus 后续不再分发
+    })
+
+    dispatcher.dispatch(WindowResizeEvent, (e) =&gt; {
+      this.relayout(e.width, e.height)
+      return false  // 不消费，让 debug / network layer 也能看到
+    })
+
+    dispatcher.dispatch(MouseButtonPressedEvent, (e) =&gt; {
+      this.handleClick(e.button)
+      return true
+    })
+  }
+}</code></pre>
+    <p>三个 <code class="mono">dispatch</code> 调用彼此独立 —— 第一个返回 true 不会让后面两个跳过，因为 dispatcher 检查的是 <code class="mono">event instanceof ctor</code>，不是 <code class="mono">event.handled</code>。这种"全部试一遍"的语义让 layer 写起来很线性。</p>
+  </section>
+
+  <footer>
+    <p>GEAAC · <code class="mono">packages/engine/src/events/</code> · 4 个文件：<code class="mono">event.ts</code> / <code class="mono">bus.ts</code> / <code class="mono">dispatcher.ts</code> / <code class="mono">{key,mouse,application}-events.ts</code></p>
+  </footer>
+
+</main>
+
+<script>
+  mermaid.initialize({
+    startOnLoad: true,
+    theme: 'base',
+    themeVariables: {
+      fontFamily: "'Outfit', system-ui, sans-serif",
+      fontSize: '13px',
+      primaryColor: '#ffffff',
+      primaryTextColor: '#14171e',
+      primaryBorderColor: '#e9e3d6',
+      lineColor: '#9a9789',
+      secondaryColor: '#f7f5f0',
+      tertiaryColor: '#f7f5f0',
+      noteBkgColor: '#fff8e6',
+      noteTextColor: '#5a3a1f',
+      noteBorderColor: '#c97b3f',
+      clusterBkg: '#fafaf3',
+      clusterBorder: '#e9e3d6'
+    },
+    flowchart: { curve: 'basis', padding: 14 }
+  });
+</script>
+</body>
+</html>

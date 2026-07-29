@@ -131,7 +131,7 @@ Refs: #42
 
 ### Comments
 
-The TS type signature already says *what*. Comments exist to say *why* — design
+The TS type signature already says _what_. Comments exist to say _why_ — design
 intent, non-obvious constraints, or contracts the type system can't express.
 The bar for adding a comment is "would removing it cost a future reader real
 time?"

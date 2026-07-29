@@ -4,3 +4,4 @@ build
 .vite
 coverage
 pnpm-lock.yaml
+docs/architecture/*.html

@@ -6,6 +6,12 @@ import type { Application } from '@geaac/engine'
 
 const APP_NAME = 'GEAAC Sandbox'
 
+/**
+ * Sandbox host component. Spins up a {@link Application} bound to a canvas
+ * ref on mount, tears it down on unmount, and renders a tiny header showing
+ * the engine version. Intentionally minimal — the real editor and renderer
+ * will live in sibling components layered on top of this bootstrap.
+ */
 export function App() {
   const [application, setApplication] = useState<Application | null>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)

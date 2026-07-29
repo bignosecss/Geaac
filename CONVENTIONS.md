@@ -129,6 +129,33 @@ Refs: #42
 - ECS data is data; systems are pure functions over data where possible.
 - Each engine module ships with at least one unit test before being marked "done" in AGENTS.md.
 
+### Comments
+
+The TS type signature already says *what*. Comments exist to say *why* — design
+intent, non-obvious constraints, or contracts the type system can't express.
+The bar for adding a comment is "would removing it cost a future reader real
+time?"
+
+Pick the form by **scope**, not by taste:
+
+- **Public API boundary** — symbols re-exported from a package's `src/index.ts`,
+  or anything a consumer calls directly across a module boundary — gets
+  `/** ... */` JSDoc. This drives IDE hover hints and any future TypeDoc build.
+  - Use `@param` / `@returns` / `@typeParam` / `@throws` as appropriate.
+  - Cross-references go through `{@link Foo}`, not bare backticks, so they
+    resolve in generated docs.
+  - Code examples use fenced ```ts blocks, not `//`-indented prose.
+- **Internal implementation** — file-local helpers, private fields, data
+  constants, design notes — uses `//` line comments. Multi-line `//` is fine
+  for a short rationale (3-5 lines); don't force a one-liner into a JSDoc
+  block just to look formal.
+- **Never** use bare `/* */` block comments. They serve no purpose JSDoc or
+  `//` can't, and they make grep noisy.
+- **No metadata comments.** No `@author`, `@date`, `@since`. Git already
+  records authorship and history; JSDoc tags for it are duplicated state.
+- **No doc-comment rot.** When a public signature changes, update its JSDoc
+  in the same commit. Stale `@param` text is worse than no JSDoc at all.
+
 ### Testing
 
 - Framework: **Vitest** (unit/integration) + **@testing-library/react** (components). **Playwright** may be added later for browser-level / visual tests.

@@ -1,16 +1,16 @@
 import { useEffect, useRef, useState } from 'react'
 
-import { ENGINE_VERSION, createApplication } from '@geaac/engine'
+import { ENGINE_VERSION, createAppWindow, createApplication } from '@geaac/engine'
 
 import type { Application } from '@geaac/engine'
 
 const APP_NAME = 'GEAAC Sandbox'
 
 /**
- * Sandbox host component. Spins up a {@link Application} bound to a canvas
- * ref on mount, tears it down on unmount, and renders a tiny header showing
- * the engine version. Intentionally minimal — the real editor and renderer
- * will live in sibling components layered on top of this bootstrap.
+ * Sandbox host component. Creates an {@link AppWindow} from the canvas ref,
+ * spins up an {@link Application} on mount, tears it down on unmount, and
+ * renders a header showing the engine version. Intentionally minimal — the
+ * real editor and renderer will live in sibling components layered on top.
  */
 export function App() {
   const [application, setApplication] = useState<Application | null>(null)
@@ -21,7 +21,8 @@ export function App() {
     const canvas = canvasRef.current
     if (!canvas) return
     if (appRef.current) return
-    const next = createApplication({ name: APP_NAME, canvas })
+    const appWindow = createAppWindow(canvas, { title: APP_NAME })
+    const next = createApplication({ name: APP_NAME, window: appWindow })
     appRef.current = next
     setApplication(next)
     next.run()

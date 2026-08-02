@@ -1,3 +1,4 @@
+import type { AppWindow } from '#engine/app-window'
 import { coreLogger } from '#engine/log/index'
 
 /**
@@ -7,11 +8,11 @@ export type ApplicationConfig = {
   /** Human-readable name, used as the logger scope and in diagnostics. */
   readonly name: string
   /**
-   * The host-owned canvas the engine will draw into. The engine treats this
-   * element as opaque: it never queries the DOM to discover a canvas on its
-   * own — the consumer owns DOM placement.
+   * The engine window this application renders into. The engine never
+   * queries the DOM to discover a canvas on its own — the consumer creates
+   * the {@link AppWindow} and passes it in.
    */
-  readonly canvas: HTMLCanvasElement
+  readonly window: AppWindow
 }
 
 /**
@@ -21,14 +22,14 @@ export type ApplicationConfig = {
 export class Application {
   /** Human-readable name passed at construction. */
   readonly name: string
-  /** The host-owned canvas this application renders into. */
-  readonly canvas: HTMLCanvasElement
+  /** The engine window this application renders into. */
+  readonly window: AppWindow
   private running = false
   private rAFId: number | null = null
 
   constructor(config: ApplicationConfig) {
     this.name = config.name
-    this.canvas = config.canvas
+    this.window = config.window
     coreLogger.info(`Created application: ${this.name}`)
   }
 

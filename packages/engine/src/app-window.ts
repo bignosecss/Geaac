@@ -1,14 +1,22 @@
+import { coreLogger } from '#engine/log/index'
+
 /**
  * Construction-time inputs for {@link AppWindow}.
- * Analogous to Hazel's `WindowProps` struct.
+ *
+ * Only `title` is required — the engine never manages canvas sizing. Canvas
+ * dimensions are owned by the host (sandbox), which controls CSS layout and
+ * resize behaviour. {@link AppWindow.width} and {@link AppWindow.height} are
+ * live getters that read the canvas element's current layout size on every
+ * access, so the engine always sees the host's truth without caching stale
+ * values or fighting CSS.
+ *
+ * Analogous to Hazel's `WindowProps` struct, except Hazel creates its own
+ * native window (via GLFW) and therefore owns the size. In the browser the DOM
+ * is the source of truth for layout; the engine respects that split.
  */
 export type AppWindowConfig = {
   /** Window title, available for display and diagnostics. */
   readonly title: string
-  /** Initial client-area width in CSS pixels. */
-  readonly width: number
-  /** Initial client-area height in CSS pixels. */
-  readonly height: number
 }
 
 /**
@@ -29,6 +37,7 @@ export class AppWindow {
   constructor(config: AppWindowConfig, canvas: HTMLCanvasElement) {
     this.title = config.title
     this.canvas = canvas
+    coreLogger.info(`Created window: ${this.title} (${this.width}x${this.height})`)
   }
 
   /** Live canvas width in CSS pixels (reads `clientWidth` on each access). */
@@ -43,17 +52,17 @@ export class AppWindow {
 }
 
 const DEFAULT_TITLE = 'Geaac'
-const DEFAULT_WIDTH = 1280
-const DEFAULT_HEIGHT = 720
 
 /**
  * Create an {@link AppWindow} with sensible defaults. The `canvas` parameter
  * is always required — the engine never creates its own drawing surface.
  *
  * Defaults (when omitted):
- * - `title`  → `'Geaac'`
- * - `width`  → `1280`
- * - `height` → `720`
+ * - `title` → `'Geaac'`
+ *
+ * Canvas dimensions are **not** configurable here. The host controls sizing
+ * via CSS; {@link AppWindow.width} and {@link AppWindow.height} read the
+ * live layout values from the canvas element on every access.
  */
 export function createAppWindow(
   canvas: HTMLCanvasElement,
@@ -62,8 +71,6 @@ export function createAppWindow(
   return new AppWindow(
     {
       title: config?.title ?? DEFAULT_TITLE,
-      width: config?.width ?? DEFAULT_WIDTH,
-      height: config?.height ?? DEFAULT_HEIGHT,
     },
     canvas,
   )

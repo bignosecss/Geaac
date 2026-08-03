@@ -1,0 +1,489 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Window 事件桥梁 · GEAAC Engine</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=Outfit:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<style>
+  :root {
+    --bg: #f7f5f0;
+    --card: #ffffff;
+    --line: #e9e3d6;
+    --line-soft: #f0eadb;
+    --text: #14171e;
+    --text-mid: #3a4256;
+    --text-muted: #7c7a72;
+    --primary: #2f6f5e;
+    --primary-soft: #2f6f5e12;
+    --accent: #c97b3f;
+    --warn: #b06367;
+    --warn-soft: #b0636710;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Outfit', system-ui, -apple-system, sans-serif;
+    font-size: 15px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  body::before, body::after {
+    content: ""; position: fixed; pointer-events: none; z-index: 0;
+    width: 520px; height: 520px; border-radius: 50%;
+    filter: blur(90px); opacity: .5;
+  }
+  body::before { top: -220px; right: -120px; background: radial-gradient(circle, #2f6f5e20 0%, transparent 70%); }
+  body::after  { bottom: -220px; left: -120px;  background: radial-gradient(circle, #c97b3f1c 0%, transparent 70%); }
+
+  main { position: relative; z-index: 1; max-width: 960px; margin: 0 auto; padding: 56px 28px 96px; }
+
+  /* ----- Header ----- */
+  .eyebrow {
+    display: inline-block; font-size: 12px; font-weight: 600;
+    letter-spacing: .12em; text-transform: uppercase;
+    color: var(--primary); margin-bottom: 18px;
+    padding: 4px 10px; background: var(--primary-soft); border-radius: 999px;
+  }
+  h1 {
+    font-family: 'DM Serif Display', serif;
+    font-weight: 400; font-size: 38px; line-height: 1.15;
+    letter-spacing: -.01em; margin: 0 0 16px;
+  }
+  .lede { color: var(--text-mid); font-size: 17px; line-height: 1.55; max-width: 640px; margin: 0 0 40px; }
+
+  /* ----- Sections ----- */
+  section { margin-top: 48px; }
+  h2 {
+    font-family: 'DM Serif Display', serif; font-weight: 400;
+    font-size: 24px; line-height: 1.2; margin: 0 0 14px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  h2 .num {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 28px; height: 28px; border-radius: 50%;
+    background: var(--primary-soft); color: var(--primary);
+    font-family: 'Outfit', sans-serif; font-size: 13px; font-weight: 600;
+  }
+  h3 {
+    font-size: 15px; font-weight: 600; margin: 0 0 8px;
+    color: var(--text); letter-spacing: -.005em;
+  }
+  p { margin: 0 0 12px; color: var(--text-mid); }
+  p strong { color: var(--text); font-weight: 600; }
+  code, .mono { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 13px; }
+  code { background: #ede7d4; color: #4a3a2a; padding: 1px 6px; border-radius: 4px; }
+  pre {
+    background: #1a1a2e; color: #e8e3d3; border-radius: 12px;
+    padding: 18px 20px; overflow-x: auto; line-height: 1.55;
+    font-size: 13px; margin: 12px 0 4px;
+    box-shadow: 0 2px 8px rgba(0,0,0,.04);
+  }
+  pre code { background: transparent; color: inherit; padding: 0; font-size: 13px; }
+
+  /* ----- Cards ----- */
+  .card {
+    background: var(--card); border: 1px solid var(--line);
+    border-radius: 16px; padding: 22px 24px;
+    box-shadow: 0 2px 8px rgba(0,0,0,.03);
+  }
+  .card + .card { margin-top: 14px; }
+
+  /* ----- Tiles (4 layers) ----- */
+  .tiles {
+    display: grid; grid-template-columns: repeat(4, 1fr);
+    gap: 14px; margin-top: 18px;
+  }
+  .tile {
+    background: var(--card); border: 1px solid var(--line);
+    border-radius: 14px; padding: 16px 16px 18px;
+    box-shadow: 0 2px 8px rgba(0,0,0,.03);
+    transition: transform .2s ease, box-shadow .2s ease;
+  }
+  .tile:hover { transform: translateY(-2px); box-shadow: 0 6px 18px rgba(0,0,0,.06); }
+  .tile .badge {
+    display: inline-block; font-size: 10px; font-weight: 700;
+    letter-spacing: .12em; text-transform: uppercase;
+    color: var(--primary); margin-bottom: 8px;
+  }
+  .tile h3 { font-size: 15px; margin-bottom: 4px; }
+  .tile p  { font-size: 13px; line-height: 1.5; color: var(--text-muted); margin: 0; }
+  .tile .icon { color: var(--primary); margin-bottom: 10px; }
+
+  /* ----- Diagram wrapper ----- */
+  .diagram {
+    background: var(--card); border: 1px solid var(--line);
+    border-radius: 16px; padding: 28px 24px;
+    box-shadow: 0 2px 8px rgba(0,0,0,.03);
+    overflow-x: auto;
+  }
+  .mermaid { display: flex; justify-content: center; font-family: 'Outfit', sans-serif !important; }
+
+  /* ----- Legend ----- */
+  .legend {
+    display: flex; flex-wrap: wrap; gap: 18px 28px;
+    margin-top: 16px; padding: 14px 18px;
+    background: var(--card); border: 1px dashed var(--line);
+    border-radius: 12px; font-size: 13px; color: var(--text-muted);
+  }
+  .legend .item { display: inline-flex; align-items: center; gap: 8px; }
+  .legend .swatch { width: 14px; height: 14px; border-radius: 4px; }
+
+  /* ----- Mapping table ----- */
+  .table {
+    width: 100%; border-collapse: collapse; margin-top: 16px;
+    font-size: 13px; color: var(--text-mid);
+    background: var(--card); border: 1px solid var(--line); border-radius: 12px;
+    overflow: hidden;
+  }
+  .table th, .table td { text-align: left; padding: 10px 14px; border-bottom: 1px solid var(--line-soft); vertical-align: top; }
+  .table th {
+    font-size: 11px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
+    color: var(--primary); background: var(--primary-soft);
+  }
+  .table tr:last-child td { border-bottom: none; }
+  .table td code { font-size: 12px; white-space: nowrap; }
+  .table .ok { color: var(--primary); font-weight: 600; }
+  .table .todo { color: var(--accent); font-weight: 600; }
+
+  /* ----- Step list (traced event) ----- */
+  .steps { list-style: none; padding: 0; margin: 14px 0 0; }
+  .steps li {
+    display: grid; grid-template-columns: 28px 1fr;
+    gap: 14px; padding: 10px 0;
+    border-bottom: 1px dashed var(--line);
+  }
+  .steps li:last-child { border-bottom: none; }
+  .steps .n {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 24px; height: 24px; border-radius: 50%;
+    background: var(--primary-soft); color: var(--primary);
+    font-weight: 600; font-size: 12px;
+  }
+  .steps .body { color: var(--text-mid); }
+  .steps .body code { font-size: 12px; }
+
+  /* ----- Gotcha cards (2-col) ----- */
+  .loop {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 14px; margin-top: 16px;
+  }
+  .loop .card { padding: 18px 20px; }
+  .loop .label {
+    font-size: 11px; font-weight: 700; letter-spacing: .12em;
+    text-transform: uppercase; color: var(--accent); margin-bottom: 6px;
+  }
+  .loop .icon { color: var(--accent); }
+
+  /* ----- Quote ----- */
+  .quote {
+    border-left: 3px solid var(--primary);
+    padding: 6px 0 6px 18px; margin: 16px 0;
+    color: var(--text-mid); font-style: italic;
+  }
+
+  /* ----- Checklist ----- */
+  .checklist { list-style: none; padding: 0; margin: 12px 0 0; }
+  .checklist li { padding: 7px 0 7px 26px; position: relative; color: var(--text-mid); }
+  .checklist li::before {
+    content: ""; position: absolute; left: 2px; top: 13px;
+    width: 12px; height: 12px; border: 2px solid var(--primary);
+    border-radius: 4px;
+  }
+  .checklist li code { font-size: 12px; }
+
+  /* ----- Footer ----- */
+  footer { margin-top: 64px; padding-top: 24px; border-top: 1px solid var(--line); color: var(--text-muted); font-size: 13px; }
+  footer a { color: var(--primary); text-decoration: none; }
+  footer a:hover { text-decoration: underline; }
+
+  /* ----- Responsive ----- */
+  @media (max-width: 760px) {
+    main { padding: 40px 20px 80px; }
+    h1 { font-size: 30px; }
+    .tiles { grid-template-columns: 1fr 1fr; }
+    .loop { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 460px) {
+    .tiles { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<main>
+
+  <span class="eyebrow">GEAAC · Engine Architecture</span>
+  <h1>Window 事件桥梁</h1>
+  <p class="lede">DOM 里的原生事件，怎么变成引擎里干净的 <code class="mono">Event</code>，再被 <code class="mono">EventBus</code> 分发给订阅者。这页讲 TheCherno「Window Events」那一集移植到浏览器的核心：<strong>谁负责翻译、谁负责路由、谁负责消费</strong>。</p>
+
+  <!-- 主架构图 -->
+  <section>
+    <h2><span class="num">1</span>主流程：一条单向管道</h2>
+    <p>整个系统是一根<strong>单向、一次性</strong>的管道：<code class="mono">DOM → AppWindow → EventBus → 订阅者</code>。依赖方向只有 <code class="mono">AppWindow</code> 同时认识 DOM 和引擎，其余每层只认识自己下游。</p>
+    <div class="diagram">
+      <div class="mermaid">
+flowchart TB
+    RAW["DOM / Browser<br/>keydown · mousemove · wheel<br/>ResizeObserver · unload"]
+
+    subgraph BRIDGE["01 AppWindow — the bridge"]
+        W1["addEventListener(...)"]
+        W2["translate → engine Event"]
+        W3["sink(event)"]
+    end
+
+    subgraph APP["02 Application"]
+        BUS["EventBus<br/>publish: byType → byCategory<br/>handled=true short-circuits"]
+    end
+
+    subgraph CONSUMERS["03 Subscribers"]
+        L1["InputLayer"]
+        L2["Camera controller"]
+        L3["React useEvent"]
+    end
+
+    RAW -->|"native events"| W1
+    W1 -->|"listen"| W2
+    W2 -->|"translate"| W3
+    W3 -->|"publish"| BUS
+    BUS -->|"type hit"| L1
+    BUS -->|"type hit"| L2
+    BUS -->|"category hit"| L3
+
+    TICK["main loop<br/>AppTick / AppRender"]
+    TICK -->|"publish"| BUS
+
+    classDef raw fill:#ede7d4,stroke:#c4b896,color:#4a3a2a;
+    classDef bridge fill:#fdecd9,stroke:#c97b3f,color:#5a3a1f;
+    classDef bus fill:#d8ebe4,stroke:#2f6f5e,color:#1d4a3e;
+    classDef lyr fill:#ffffff,stroke:#e9e3d6,color:#14171e;
+
+    class RAW raw;
+    class W1,W2,W3 bridge;
+    class TICK bridge;
+    class BUS bus;
+    class L1,L2,L3 lyr;
+      </div>
+    </div>
+    <div class="legend">
+      <div class="item"><span class="swatch" style="background:#ede7d4;border:1px solid #c4b896"></span>DOM · 外部世界（原始事件）</div>
+      <div class="item"><span class="swatch" style="background:#c97b3f33;border:1px solid #c97b3f"></span>桥梁 / 生产者 · AppWindow 与主循环</div>
+      <div class="item"><span class="swatch" style="background:#2f6f5e22;border:1px solid #2f6f5e"></span>EventBus · 路由</div>
+      <div class="item"><span class="swatch" style="background:#fff;border:1px solid #e9e3d6"></span>订阅者 · Layer / 系统 / hook</div>
+    </div>
+    <p class="quote">有两条独立的<strong>生产者</strong>管道：窗口输入（AppWindow）和主循环（AppTick / AppRender）。它们从不同源头 <code class="mono">publish</code> 到同一个 bus，订阅者不关心事件从哪条管道来。bus 是事件汇聚的中转站，不是 window 专属管道。</p>
+  </section>
+
+  <!-- mental model + 类比 -->
+  <section>
+    <h2><span class="num">2</span>mental model：四层 + 机场海关类比</h2>
+    <div class="tiles">
+      <div class="tile">
+        <div class="icon">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+        </div>
+        <div class="badge">DOM / Browser</div>
+        <h3>外部世界</h3>
+        <p>原始、杂乱：<code class="mono">clientX/Y</code>、<code class="mono">e.code</code>、<code class="mono">deltaMode</code>。只在这一层出现，绝不外泄。</p>
+      </div>
+      <div class="tile">
+        <div class="icon">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>
+        </div>
+        <div class="badge">AppWindow</div>
+        <h3>桥梁 / 海关</h3>
+        <p>唯一同时懂 DOM 和引擎的一层。翻译成引擎 <code class="mono">Event</code>，交给 sink。</p>
+      </div>
+      <div class="tile">
+        <div class="icon">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M2 12h20"/></svg>
+        </div>
+        <div class="badge">EventBus</div>
+        <h3>路由器</h3>
+        <p>归 <code class="mono">Application</code> 所有。先 type 订阅、再 category 订阅，<code class="mono">handled=true</code> 即停。</p>
+      </div>
+      <div class="tile">
+        <div class="icon">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+        </div>
+        <div class="badge">Subscribers</div>
+        <h3>消费端</h3>
+        <p>Layer / 系统 / React hook。订阅感兴趣的 <code class="mono">EventType</code>，只讲引擎语。</p>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:18px;">
+      <h3>机场类比</h3>
+      <p><strong>DOM 是机场外的世界。</strong>形形色色的入境者（原生事件）带着各自的杂七杂八行李进来——<code class="mono">clientX/clientY</code>、<code class="mono">e.code</code>、<code class="mono">deltaMode</code>，每个航班的格式都不一样。</p>
+      <p><strong>AppWindow 是海关。</strong>唯一同时懂"外面"和"国内"的地方。负责把关、翻译，把每个人的信息整理成统一格式的护照（引擎 <code class="mono">Event</code>），然后放行入境。</p>
+      <p><strong>EventBus 是国内的交通系统。</strong>把每个入境者送到对应的出口（订阅者）那里。<code class="mono">handled</code> 标志就像出口工作人员说"这个人我接了"，别人就不用再管。</p>
+      <p><strong>订阅者是等在出口的人。</strong>只关心自己要接的那类人，到了就带走。</p>
+      <p class="quote">核心洞见：<strong>一旦入境，没人再关心你来自哪个航站楼、哪种飞机。</strong>下游所有人只讲引擎语。这就是那集真正教的东西——不是某个回调函数，而是"谁负责翻译、谁负责路由、谁负责消费"这种职责隔离。</p>
+    </div>
+  </section>
+
+  <!-- 浏览器 vs GLFW 的坑 -->
+  <section>
+    <h2><span class="num">3</span>浏览器 ≠ GLFW：四个坑</h2>
+    <p>GLFW 的回调是 1:1 的（窗口变了→resize 回调）。浏览器里 canvas 的尺寸归 CSS 管、没有"关闭"事件、按键重复只给布尔标志。以下四处，是移植时最容易想当然的地方。</p>
+    <div class="loop">
+      <div class="card">
+        <div class="label">坑 1 · Resize</div>
+        <h3>不能用 <code class="mono">window.resize</code></h3>
+        <p><code class="mono">window.resize</code> 只在视口变化时触发，canvas 本身被 CSS 改尺寸不会响。诚实的信号是 <code class="mono">ResizeObserver</code> 挂在 canvas 上，配合已有的 <code class="mono">this.width / this.height</code> 活取值。</p>
+      </div>
+      <div class="card">
+        <div class="label">坑 2 · Close</div>
+        <h3>canvas 没有"关闭"事件</h3>
+        <p><code class="mono">WindowCloseEvent</code> 不该由某个 DOM 监听器产生，而应由<strong>宿主生命周期</strong>产生（比如 <code class="mono">Application.close()</code> 时发布一个），游戏逻辑借此存盘。</p>
+      </div>
+      <div class="card">
+        <div class="label">坑 3 · Key repeat</div>
+        <h3>重复从"次数"变"布尔"</h3>
+        <p>GLFW 给重复<em>计数</em>，DOM 只给 <code class="mono">e.repeat</code> 布尔。事件类的 <code class="mono">repeatCount</code> 期待数字，所以翻译成 <code class="mono">e.repeat ? 1 : 0</code>（或自己累计）。</p>
+      </div>
+      <div class="card">
+        <div class="label">坑 4 · Focus</div>
+        <h3>canvas 不自动拿键盘</h3>
+        <p>键盘事件只在 canvas 有焦点时到达。要么给 canvas <code class="mono">tabIndex={0}</code> 并在 mount 时 focus，要么键盘监听挂 <code class="mono">window</code>（页面全局，更接近 GLFW 抓全局输入的语义）。鼠标留在 canvas 上——坐标本来就相对 canvas。这是要<strong>有意识地选</strong>，别让它运行时悄悄暴露。</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 翻译表 -->
+  <section>
+    <h2><span class="num">4</span>翻译表：DOM → 引擎 Event</h2>
+    <p>每个监听器都干一件"翻译"的事。事件类的字段——<code class="mono">canvas-relative</code> 坐标、<code class="mono">platform keyCode</code>、<code class="mono">0=左键</code>——本来就是留给这一步填的。</p>
+    <table class="table">
+      <tr><th>DOM 源</th><th>翻译成</th><th>关键翻译逻辑</th></tr>
+      <tr><td><code class="mono">ResizeObserver(canvas)</code></td><td><code class="mono">WindowResizeEvent(width, height)</code></td><td>用已有的 <code class="mono">this.width/height</code> 活取值</td></tr>
+      <tr><td><code class="mono">keydown</code></td><td><code class="mono">KeyPressedEvent(keyCode, repeatCount)</code></td><td><code class="mono">repeatCount = e.repeat ? 1 : 0</code></td></tr>
+      <tr><td><code class="mono">keyup</code></td><td><code class="mono">KeyReleasedEvent(keyCode)</code></td><td>&nbsp;</td></tr>
+      <tr><td><code class="mono">keydown</code> 且 <code class="mono">e.key.length === 1</code></td><td><code class="mono">KeyTypedEvent(keyCode)</code></td><td>只有能产生字符的键</td></tr>
+      <tr><td><code class="mono">mousemove</code></td><td><code class="mono">MouseMovedEvent(x, y)</code></td><td><code class="mono">x = e.clientX - rect.left</code>（<code class="mono">rect = canvas.getBoundingClientRect()</code>）</td></tr>
+      <tr><td><code class="mono">wheel</code></td><td><code class="mono">MouseScrolledEvent(deltaX, deltaY)</code></td><td>注意 <code class="mono">e.deltaMode</code>（像素 vs 行）</td></tr>
+      <tr><td><code class="mono">mousedown</code> / <code class="mono">mouseup</code></td><td><code class="mono">MouseButtonPressed/ReleasedEvent(button)</code></td><td><code class="mono">e.button</code>：0=左、1=中、2=右</td></tr>
+      <tr><td>宿主卸载（React unmount / <code class="mono">app.close()</code>）</td><td><code class="mono">WindowCloseEvent</code></td><td>无 DOM 对应物，由生命周期产生</td></tr>
+    </table>
+  </section>
+
+  <!-- 设计骨架 -->
+  <section>
+    <h2><span class="num">5</span>设计骨架：attach(sink) + Application owns bus</h2>
+    <p>当前代码库的状态：<span class="mono">EventBus 和所有事件类已就绪，AppWindow 只是个 canvas 视图，Application 还没有 bus。</span> 缺的正是中间那根线。</p>
+    <table class="table">
+      <tr><th>角色</th><th>你的代码</th><th>状态</th></tr>
+      <tr><td>桥梁 / 海关</td><td><code class="mono">app-window.ts</code> 的 <code class="mono">AppWindow</code></td><td class="todo">缺接线，要加 attach/detach</td></tr>
+      <tr><td>路由器</td><td><code class="mono">events/bus.ts</code> 的 <code class="mono">EventBus</code></td><td class="ok">✅ 已有</td></tr>
+      <tr><td>路由器拥有者</td><td><code class="mono">application.ts</code> 的 <code class="mono">Application</code></td><td class="todo">缺 bus，要加</td></tr>
+      <tr><td>事件定义</td><td><code class="mono">events/*.ts</code>（EventType、各具体事件）</td><td class="ok">✅ 已有</td></tr>
+      <tr><td>订阅者</td><td>未来的 layer / sandbox 的 <code class="mono">useEvent</code></td><td class="todo">缺，最后接</td></tr>
+    </table>
+
+    <p style="margin-top:18px;">设计决策：<strong><code class="mono">Application</code> 拥有 <code class="mono">EventBus</code>，<code class="mono">AppWindow</code> 提供一个 <code class="mono">attach(sink)</code> 把自己接进去。</strong>这正好是 ARCHITECTURE.md 里已经写的下一步（"Application owns the bus; browser input wiring (window/canvas listeners)"）。</p>
+<pre><code>// application.ts —— 构造时创建 bus，并把窗口接进去
+export class Application {
+  readonly events = new EventBus()
+
+  constructor(config: ApplicationConfig) {
+    this.window = config.window
+    this.window.attach((event) =&gt; this.events.publish(event))
+  }
+
+  close(): void {
+    this.window.detach()   // 卸载时摘掉 DOM 监听，防泄漏 / 双注册
+    // ... 原有 rAF 清理
+  }
+}</code></pre>
+<pre><code>// app-window.ts —— 窗口变成"事件生产者"
+type EventSink = (event: Event) =&gt; void
+
+export class AppWindow {
+  private sink: EventSink | null = null
+
+  attach(sink: EventSink): void {
+    this.sink = sink
+    this.canvas.addEventListener('keydown', this.onKeyDown)
+    this.canvas.addEventListener('mousemove', this.onMouseMove)
+    // ... wheel / mousedown / mouseup / ResizeObserver ...
+  }
+
+  detach(): void {
+    // 反向 removeEventListener 全部
+  }
+}</code></pre>
+    <p>为什么用 <code class="mono">attach(sink)</code> 而不是把 bus 直接塞给 window？</p>
+    <ol class="steps">
+      <li><span class="n">1</span><span class="body"><strong>保持"Application 拥有 bus"</strong>——窗口只拿一个 <code class="mono">(event) =&gt; void</code> 的最小接口，不知道也不关心谁在消费。对应 Hazel 的 <code class="mono">SetEventCallback(std::bind(...))</code>，只是 TS 里 <code class="mono">EventBus</code> 本身就是"回调注册表"，不需要 Hazel 那套单回调机制。</span></li>
+      <li><span class="n">2</span><span class="body"><strong>好测试</strong>——sink 是纯函数接缝，测试可以喂一个假 sink 断言窗口翻译得对不对，不用真的建 bus。符合"每个 engine 模块带一个测试"的约定。</span></li>
+    </ol>
+  </section>
+
+  <!-- 追踪一条事件 -->
+  <section>
+    <h2><span class="num">6</span>追踪一条事件：鼠标移动</h2>
+    <div class="card">
+      <ol class="steps">
+        <li><span class="n">1</span><span class="body">用户移动鼠标，浏览器在 canvas 上触发 <code class="mono">mousemove</code> DOM 事件。</span></li>
+        <li><span class="n">2</span><span class="body"><code class="mono">AppWindow</code> 的 <code class="mono">onMouseMove</code> 监听器（在 <code class="mono">createApplication</code> 时被 <code class="mono">attach</code>）触发。</span></li>
+        <li><span class="n">3</span><span class="body">算坐标：<code class="mono">rect = canvas.getBoundingClientRect()</code>，<code class="mono">x = e.clientX - rect.left</code>、<code class="mono">y = e.clientY - rect.top</code>。</span></li>
+        <li><span class="n">4</span><span class="body"><code class="mono">new MouseMovedEvent(x, y)</code> 构造完成。</span></li>
+        <li><span class="n">5</span><span class="body"><code class="mono">sink(event)</code> → Application 的 <code class="mono">(e) =&gt; this.events.publish(e)</code>。</span></li>
+        <li><span class="n">6</span><span class="body"><code class="mono">EventBus.publish</code> 先跑 <code class="mono">MouseMoved</code> 的 type 订阅者，再跑 <code class="mono">Input | Mouse</code> 的 category 订阅者；第一个设 <code class="mono">handled = true</code> 即短路。</span></li>
+        <li><span class="n">7</span><span class="body">订阅者（相机控制器 / <code class="mono">useEvent</code> hook）拿到事件，更新游戏状态。</span></li>
+      </ol>
+    </div>
+    <p class="quote">另一条独立管道是<strong>主循环</strong>：<code class="mono">Application.tick()</code> 每帧 <code class="mono">publish(new AppTickEvent())</code> / <code class="mono">publish(new AppRenderEvent())</code>——这是 <code class="mono">EventType</code> 里 <code class="mono">AppTick</code>/<code class="mono">AppRender</code> 的归宿，由<strong>循环</strong>生产，跟窗口无关。两条管道在 <code class="mono">EventBus</code> 汇合。</p>
+  </section>
+
+  <!-- 复习要点 -->
+  <section>
+    <h2><span class="num">7</span>复习要点</h2>
+    <p>一句话记忆：<strong>DOM 是外界的杂乱信号，AppWindow 是唯一的海关，EventBus 是国内分拣，订阅者是出口。依赖只有一条单向管道：DOM → AppWindow → bus → 订阅者。</strong></p>
+    <div class="card">
+      <h3>复习 checklist</h3>
+      <ul class="checklist">
+        <li>谁拥有 bus？→ <code class="mono">Application</code></li>
+        <li>谁把 DOM 翻译成引擎事件？→ <code class="mono">AppWindow</code>（<code class="mono">attach</code> / <code class="mono">detach</code>）</li>
+        <li>翻译时改了哪些字段？→ 坐标（减 <code class="mono">rect.left/top</code>）、<code class="mono">repeatCount</code>、<code class="mono">button</code>、<code class="mono">delta</code></li>
+        <li>四个浏览器坑都处理了吗？→ <code class="mono">ResizeObserver</code> / close 走生命周期 / repeat 布尔转数字 / canvas focus</li>
+        <li>卸载时摘掉监听了吗？→ <code class="mono">Application.close()</code> 里 <code class="mono">window.detach()</code>，防 React StrictMode 双注册</li>
+      </ul>
+    </div>
+  </section>
+
+  <footer>
+    <p>GEAAC · <code class="mono">packages/engine/src/app-window.ts</code> + <code class="mono">application.ts</code> + <code class="mono">events/bus.ts</code> · 姊妹篇：<a href="./event-flow.html">Event Flow</a>（bus 内部路由与 handled 截断细节）</p>
+  </footer>
+
+</main>
+
+<script>
+  mermaid.initialize({
+    startOnLoad: true,
+    theme: 'base',
+    themeVariables: {
+      fontFamily: "'Outfit', system-ui, sans-serif",
+      fontSize: '13px',
+      primaryColor: '#ffffff',
+      primaryTextColor: '#14171e',
+      primaryBorderColor: '#e9e3d6',
+      lineColor: '#9a9789',
+      secondaryColor: '#f7f5f0',
+      tertiaryColor: '#f7f5f0',
+      noteBkgColor: '#fff8e6',
+      noteTextColor: '#5a3a1f',
+      noteBorderColor: '#c97b3f',
+      clusterBkg: '#fafaf3',
+      clusterBorder: '#e9e3d6'
+    },
+    flowchart: { curve: 'basis', padding: 14 }
+  });
+</script>
+</body>
+</html>

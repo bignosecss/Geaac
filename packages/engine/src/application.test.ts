@@ -1,13 +1,23 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import type { Mock } from 'vitest'
 
-import { createApplication, Application } from '@geaac/engine'
+import { Application, EventType, createApplication } from '@geaac/engine'
 import type { AppWindow } from '@geaac/engine'
 
 describe('Application', () => {
   let windowStub: AppWindow
+  let attachMock: Mock
+  let detachMock: Mock
 
   beforeEach(() => {
-    windowStub = { width: 800, height: 600 } as AppWindow
+    attachMock = vi.fn()
+    detachMock = vi.fn()
+    windowStub = {
+      width: 800,
+      height: 600,
+      attach: attachMock,
+      detach: detachMock,
+    } as unknown as AppWindow
     vi.spyOn(console, 'info').mockImplementation(() => {})
     vi.spyOn(console, 'warn').mockImplementation(() => {})
     vi.stubGlobal('requestAnimationFrame', () => 1)
@@ -36,6 +46,12 @@ describe('Application', () => {
     expect(console.info).toHaveBeenCalledWith('[Engine]', 'Created application: Console Check')
   })
 
+  it('constructor wires the window bridge into the event bus', () => {
+    new Application({ name: 'Bridged', window: windowStub })
+    expect(attachMock).toHaveBeenCalledTimes(1)
+    expect(attachMock).toHaveBeenCalledWith(expect.any(Function))
+  })
+
   it('run() logs that the main loop started', () => {
     const app = new Application({ name: 'Runner', window: windowStub })
     app.run()
@@ -59,5 +75,29 @@ describe('Application', () => {
   it('close() does not throw when called without run()', () => {
     const app = new Application({ name: 'Safe', window: windowStub })
     expect(() => app.close()).not.toThrow()
+  })
+
+  it('close() publishes WindowCloseEvent before detaching the window', () => {
+    const app = new Application({ name: 'CloseBridge', window: windowStub })
+    const received: string[] = []
+    app.events.on(EventType.WindowClose, (e) => received.push(e.name))
+    app.close()
+    expect(received).toEqual(['WindowClose'])
+    expect(detachMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('tick() publishes AppTickEvent then AppRenderEvent', () => {
+    let captured: ((time: number) => void) | undefined
+    vi.stubGlobal('requestAnimationFrame', (cb: (time: number) => void) => {
+      captured = cb
+      return 1
+    })
+    const app = new Application({ name: 'Ticker', window: windowStub })
+    const received: string[] = []
+    app.events.on(EventType.AppTick, () => received.push('AppTick'))
+    app.events.on(EventType.AppRender, () => received.push('AppRender'))
+    app.run()
+    captured!(0)
+    expect(received).toEqual(['AppTick', 'AppRender'])
   })
 })

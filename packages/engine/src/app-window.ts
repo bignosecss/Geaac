@@ -1,3 +1,11 @@
+import type { Event } from '#engine/events/event'
+import { WindowResizeEvent } from '#engine/events/application-events'
+import { KeyPressedEvent, KeyReleasedEvent } from '#engine/events/key-events'
+import { MouseMovedEvent, MouseScrolledEvent } from '#engine/events/mouse-events'
+import {
+  MouseButtonPressedEvent,
+  MouseButtonReleasedEvent,
+} from '#engine/events/mouse-button-events'
 import { coreLogger } from '#engine/log/index'
 
 /**
@@ -20,6 +28,16 @@ export type AppWindowConfig = {
 }
 
 /**
+ * Receives engine {@link Event} instances produced by an {@link AppWindow}.
+ *
+ * The window translates native DOM events into engine events and hands them to
+ * this sink; it never knows who consumes them. Analogous to Hazel's
+ * `EventCallback` — {@link Application} wires its {@link EventBus} publish
+ * into this sink via {@link AppWindow.attach}.
+ */
+export type EventSink = (event: Event) => void
+
+/**
  * Wraps a host-owned `HTMLCanvasElement` and exposes its CSS layout
  * dimensions as live getters. Analogous to Hazel's `WindowsWindow` — the
  * sole platform implementation of the window abstraction.
@@ -27,12 +45,20 @@ export type AppWindowConfig = {
  * The canvas is always externally injected — the engine never creates DOM
  * elements. The consumer (sandbox) owns DOM placement and passes the element
  * in.
+ *
+ * After construction the window is passive: it becomes the DOM→Event bridge
+ * only once {@link AppWindow.attach} is called, and stops being one after
+ * {@link AppWindow.detach}. {@link Application} owns that lifecycle.
  */
 export class AppWindow {
   /** Window title passed at construction. */
   readonly title: string
   /** The host-owned canvas this window wraps. */
   readonly canvas: HTMLCanvasElement
+  /** The active event sink, or `null` while the window is detached. */
+  private sink: EventSink | null = null
+  /** Observes canvas layout changes to produce {@link WindowResizeEvent}. */
+  private resizeObserver: ResizeObserver | null = null
 
   constructor(config: AppWindowConfig, canvas: HTMLCanvasElement) {
     this.title = config.title
@@ -48,6 +74,86 @@ export class AppWindow {
   /** Live canvas height in CSS pixels (reads `clientHeight` on each access). */
   get height(): number {
     return this.canvas.clientHeight
+  }
+
+  /**
+   * Start producing engine events: register DOM listeners on the host window
+   * and canvas, then translate every native event into the matching engine
+   * {@link Event} and forward it to `sink`.
+   *
+   * Idempotent: calling `attach` while already attached detaches the previous
+   * sink (and its listeners) first, then re-attaches. Teardown is
+   * {@link AppWindow.detach}; the two mirror each other exactly.
+   */
+  attach(sink: EventSink): void {
+    if (this.sink !== null) {
+      coreLogger.warn('AppWindow is already attached; detaching previous sink')
+      this.detach()
+    }
+    this.sink = sink
+    // Keyboard attaches to `window`, not the canvas: a canvas only receives
+    // key events while focused, and forcing focus management onto the host is
+    // the wrong coupling. Global listeners match GLFW's grab-any-input model.
+    window.addEventListener('keydown', this.handleKeyDown)
+    window.addEventListener('keyup', this.handleKeyUp)
+    this.canvas.addEventListener('mousemove', this.handleMouseMove)
+    this.canvas.addEventListener('wheel', this.handleWheel)
+    this.canvas.addEventListener('mousedown', this.handleMouseDown)
+    this.canvas.addEventListener('mouseup', this.handleMouseUp)
+    this.resizeObserver = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        const { width, height } = entry.contentRect
+        this.sink?.(new WindowResizeEvent(width, height))
+      }
+    })
+    this.resizeObserver.observe(this.canvas)
+  }
+
+  /**
+   * Stop producing engine events: remove every DOM listener and disconnect the
+   * resize observer. Safe to call repeatedly and when never attached.
+   */
+  detach(): void {
+    if (this.sink === null) return
+    window.removeEventListener('keydown', this.handleKeyDown)
+    window.removeEventListener('keyup', this.handleKeyUp)
+    this.canvas.removeEventListener('mousemove', this.handleMouseMove)
+    this.canvas.removeEventListener('wheel', this.handleWheel)
+    this.canvas.removeEventListener('mousedown', this.handleMouseDown)
+    this.canvas.removeEventListener('mouseup', this.handleMouseUp)
+    this.resizeObserver?.disconnect()
+    this.resizeObserver = null
+    this.sink = null
+  }
+
+  // Bound handlers: arrow-function properties so add/removeEventListener always
+  // reference the same function identity.
+
+  private handleKeyDown = (e: KeyboardEvent): void => {
+    // DOM reports repeat as a boolean flag; the event wants a count.
+    this.sink?.(new KeyPressedEvent(e.keyCode, e.repeat ? 1 : 0))
+  }
+
+  private handleKeyUp = (e: KeyboardEvent): void => {
+    this.sink?.(new KeyReleasedEvent(e.keyCode))
+  }
+
+  private handleMouseMove = (e: MouseEvent): void => {
+    // DOM coordinates are viewport-relative; the event wants canvas-relative.
+    const rect = this.canvas.getBoundingClientRect()
+    this.sink?.(new MouseMovedEvent(e.clientX - rect.left, e.clientY - rect.top))
+  }
+
+  private handleWheel = (e: WheelEvent): void => {
+    this.sink?.(new MouseScrolledEvent(e.deltaX, e.deltaY))
+  }
+
+  private handleMouseDown = (e: MouseEvent): void => {
+    this.sink?.(new MouseButtonPressedEvent(e.button))
+  }
+
+  private handleMouseUp = (e: MouseEvent): void => {
+    this.sink?.(new MouseButtonReleasedEvent(e.button))
   }
 }
 

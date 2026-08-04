@@ -1,4 +1,6 @@
 import type { AppWindow } from '#engine/app-window'
+import { AppRenderEvent, AppTickEvent, WindowCloseEvent } from '#engine/events/application-events'
+import { EventBus } from '#engine/events/bus'
 import { coreLogger } from '#engine/log/index'
 
 /**
@@ -16,20 +18,27 @@ export type ApplicationConfig = {
 }
 
 /**
- * Top-level engine host. Owns the main loop and the lifecycle from `run` to
- * `close`. Created via {@link createApplication} or directly with a config.
+ * Top-level engine host. Owns the event bus, the main loop, and the lifecycle
+ * from `run` to `close`. Created via {@link createApplication} or directly
+ * with a config.
  */
 export class Application {
   /** Human-readable name passed at construction. */
   readonly name: string
   /** The engine window this application renders into. */
   readonly window: AppWindow
+  /**
+   * The engine event hub. The window's DOM listeners publish into this bus via
+   * {@link AppWindow.attach}; subscribers read from it with {@link EventBus.on}.
+   */
+  readonly events = new EventBus()
   private running = false
   private rAFId: number | null = null
 
   constructor(config: ApplicationConfig) {
     this.name = config.name
     this.window = config.window
+    this.window.attach((event) => this.events.publish(event))
     coreLogger.info(`Created application: ${this.name}`)
   }
 
@@ -48,11 +57,15 @@ export class Application {
   }
 
   /**
-   * Stop the main loop and release the pending animation frame. Safe to call
-   * when the application is not running. After `close`, `run` may be called
-   * again to restart the loop.
+   * Stop the main loop, detach the window bridge, and release the pending
+   * animation frame. Safe to call when the application is not running. After
+   * `close`, `run` may be called again to restart the loop.
    */
   close(): void {
+    // Publish before detaching so subscribers can react (e.g. save state)
+    // while the window bridge is still live.
+    this.events.publish(new WindowCloseEvent())
+    this.window.detach()
     if (this.rAFId !== null) {
       cancelAnimationFrame(this.rAFId)
       this.rAFId = null
@@ -62,6 +75,8 @@ export class Application {
   }
 
   private tick(): void {
+    this.events.publish(new AppTickEvent())
+    this.events.publish(new AppRenderEvent())
     this.rAFId = requestAnimationFrame(() => this.tick())
   }
 }

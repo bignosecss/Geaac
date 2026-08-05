@@ -76,7 +76,8 @@ engine reusable across browser consumers.
 
 Status: event pipeline complete — blocking EventBus, AppWindow DOM→Event
 bridge (attach/detach), Application-owned bus, keyboard scoped to the canvas,
-keyCode→code/key migration, and React `useEvent` hook with a live sandbox demo.
+keyCode→code/key migration, React `useEvent` hook (single-type subscription),
+and a data-driven sandbox event inspector.
 Next: input consumption (`preventDefault` on game keys such as Space/arrows to
 stop the page scrolling); wire `KeyTypedEvent` production (keydown where
 `e.key.length === 1`) for future text input.
@@ -91,7 +92,10 @@ Why: gives us a runnable artifact to validate engine behavior in a
 real browser, and is the natural host for ad-hoc experiments while
 developing engine modules.
 
-Status: scaffolded (Vite + React 19, configures an engine application).
+Status: scaffolded (Vite + React 19, configures an engine application) with a
+live event inspector (`EventFeed` + `EventInspector`) that surfaces every
+listenable event type — count and latest payload per type, plus a rolling
+stream, with per-frame AppTick/AppRender counted but stream-opt-in.
 
 ### `@geaac/editor` (planned)
 

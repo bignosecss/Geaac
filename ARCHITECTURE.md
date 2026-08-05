@@ -74,8 +74,12 @@ consumer owns its DOM layout and supplies the canvas on which the engine will
 render. Explicit inputs keep API-neutral engine code testable in Node and the
 engine reusable across browser consumers.
 
-Status: events slice landed (bit-flag categories, EventType enum, blocking EventBus).
-Next: Application owns the bus; browser input wiring (`window`/`canvas` listeners); React `useEvent` hook in sandbox.
+Status: event pipeline complete — blocking EventBus, AppWindow DOM→Event
+bridge (attach/detach), Application-owned bus, keyboard scoped to the canvas,
+keyCode→code/key migration, and React `useEvent` hook with a live sandbox demo.
+Next: input consumption (`preventDefault` on game keys such as Space/arrows to
+stop the page scrolling); wire `KeyTypedEvent` production (keydown where
+`e.key.length === 1`) for future text input.
 
 ### `@geaac/sandbox`
 

@@ -1,22 +1,21 @@
 import { useEffect, useRef, useState } from 'react'
 
-import { ENGINE_VERSION, EventType, createAppWindow, createApplication } from '@geaac/engine'
-import type { Application, KeyPressedEvent, MouseMovedEvent } from '@geaac/engine'
+import { ENGINE_VERSION, createAppWindow, createApplication } from '@geaac/engine'
+import type { Application } from '@geaac/engine'
 
-import { useEvent } from '#sandbox/use-event'
+import { EventInspector } from '#sandbox/event-inspector'
 
 const APP_NAME = 'GEAAC Sandbox'
 
 /**
  * Sandbox host component. Creates an {@link AppWindow} from the canvas ref,
  * spins up an {@link Application} on mount, tears it down on unmount, and
- * renders a header showing the engine version. The status panel subscribes to
- * live engine events so the window→bus→subscriber pipeline is visible.
+ * renders a header showing the engine version. The {@link EventInspector}
+ * subscribes to the application's live event bus so the window→bus→subscriber
+ * pipeline is visible.
  */
 export function App() {
   const [application, setApplication] = useState<Application | null>(null)
-  const [mouse, setMouse] = useState<{ x: number; y: number } | null>(null)
-  const [lastKey, setLastKey] = useState<string | null>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const appRef = useRef<Application | null>(null)
 
@@ -39,16 +38,6 @@ export function App() {
     }
   }, [])
 
-  // Live event demo: re-render on engine events so the pipeline is visible.
-  useEvent(application?.events ?? null, EventType.MouseMoved, (e: MouseMovedEvent) => {
-    setMouse({ x: e.x, y: e.y })
-  })
-  useEvent(application?.events ?? null, EventType.KeyPressed, (e: KeyPressedEvent) => {
-    setLastKey(
-      e.repeatCount > 0 ? `KeyPressed ${e.code} (repeat ${e.repeatCount})` : `KeyPressed ${e.code}`,
-    )
-  })
-
   return (
     <main className="min-h-screen bg-slate-50 font-sans text-slate-900">
       <div className="mx-auto max-w-3xl px-4 py-6">
@@ -63,10 +52,7 @@ export function App() {
           ref={canvasRef}
           className="mt-4 block h-[70vh] min-h-96 w-full rounded-md border border-slate-200 bg-slate-100"
         />
-        <div className="mt-2 flex flex-wrap gap-x-6 gap-y-1 rounded-md border border-slate-200 bg-white px-4 py-2 text-sm text-slate-600">
-          <span>Mouse: {mouse ? `${mouse.x}, ${mouse.y}` : '—'}</span>
-          <span>Last key: {lastKey ?? '—'}</span>
-        </div>
+        <EventInspector application={application} />
       </div>
     </main>
   )

@@ -26,6 +26,9 @@ export function App() {
     appRef.current = next
     setApplication(next)
     next.run()
+    // The engine makes the canvas focusable; the host decides when the game is
+    // active. Focusing on mount means keys reach the game immediately.
+    canvas.focus()
 
     return () => {
       next.close()

@@ -350,7 +350,7 @@ flowchart TB
       <div class="card">
         <div class="label">坑 4 · Focus</div>
         <h3>canvas 不自动拿键盘</h3>
-        <p>键盘事件只在 canvas 有焦点时到达。要么给 canvas <code class="mono">tabIndex={0}</code> 并在 mount 时 focus，要么键盘监听挂 <code class="mono">window</code>（页面全局，更接近 GLFW 抓全局输入的语义）。鼠标留在 canvas 上——坐标本来就相对 canvas。这是要<strong>有意识地选</strong>，别让它运行时悄悄暴露。</p>
+        <p>键盘监听挂在 <code class="mono">canvas</code> 上，而不是 <code class="mono">window</code>——canvas 才是游戏边界，页面其他 UI（输入框、未来的编辑器）的按键不该漏进游戏。引擎在 <code class="mono">attach</code> 时给 canvas 设 <code class="mono">tabIndex={0}</code> 使其可聚焦，宿主在游戏激活时 <code class="mono">canvas.focus()</code>。焦点在页面其他元素上时，游戏天然收不到键盘事件——这是对 GLFW"窗口抓全局输入"的<strong>有意偏离</strong>。鼠标留在 canvas 上——坐标本来就相对 canvas。</p>
       </div>
     </div>
   </section>

@@ -91,11 +91,16 @@ export class AppWindow {
       this.detach()
     }
     this.sink = sink
-    // Keyboard attaches to `window`, not the canvas: a canvas only receives
-    // key events while focused, and forcing focus management onto the host is
-    // the wrong coupling. Global listeners match GLFW's grab-any-input model.
-    window.addEventListener('keydown', this.handleKeyDown)
-    window.addEventListener('keyup', this.handleKeyUp)
+    // Make the canvas focusable: a canvas is not focusable by default, and
+    // keyboard events only reach the focused element. Focusability is engine
+    // input infrastructure; the host decides *when* to focus it.
+    this.canvas.tabIndex = 0
+    // Keyboard attaches to the canvas, not `window`: the canvas is the game
+    // boundary (the analog of GLFW's window). While another page element is
+    // focused, its keys never leak into the game; once the canvas is focused,
+    // the game owns the keyboard.
+    this.canvas.addEventListener('keydown', this.handleKeyDown)
+    this.canvas.addEventListener('keyup', this.handleKeyUp)
     this.canvas.addEventListener('mousemove', this.handleMouseMove)
     this.canvas.addEventListener('wheel', this.handleWheel)
     this.canvas.addEventListener('mousedown', this.handleMouseDown)
@@ -115,8 +120,8 @@ export class AppWindow {
    */
   detach(): void {
     if (this.sink === null) return
-    window.removeEventListener('keydown', this.handleKeyDown)
-    window.removeEventListener('keyup', this.handleKeyUp)
+    this.canvas.removeEventListener('keydown', this.handleKeyDown)
+    this.canvas.removeEventListener('keyup', this.handleKeyUp)
     this.canvas.removeEventListener('mousemove', this.handleMouseMove)
     this.canvas.removeEventListener('wheel', this.handleWheel)
     this.canvas.removeEventListener('mousedown', this.handleMouseDown)

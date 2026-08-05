@@ -358,13 +358,13 @@ flowchart TB
   <!-- 翻译表 -->
   <section>
     <h2><span class="num">4</span>翻译表：DOM → 引擎 Event</h2>
-    <p>每个监听器都干一件"翻译"的事。事件类的字段——<code class="mono">canvas-relative</code> 坐标、<code class="mono">platform keyCode</code>、<code class="mono">0=左键</code>——本来就是留给这一步填的。</p>
+    <p>每个监听器都干一件"翻译"的事。事件类的字段——<code class="mono">canvas-relative</code> 坐标、<code class="mono">physical code</code>（<code class="mono">e.code</code>）、<code class="mono">0=左键</code>——本来就是留给这一步填的。</p>
     <table class="table">
       <tr><th>DOM 源</th><th>翻译成</th><th>关键翻译逻辑</th></tr>
       <tr><td><code class="mono">ResizeObserver(canvas)</code></td><td><code class="mono">WindowResizeEvent(width, height)</code></td><td>用已有的 <code class="mono">this.width/height</code> 活取值</td></tr>
-      <tr><td><code class="mono">keydown</code></td><td><code class="mono">KeyPressedEvent(keyCode, repeatCount)</code></td><td><code class="mono">repeatCount = e.repeat ? 1 : 0</code></td></tr>
-      <tr><td><code class="mono">keyup</code></td><td><code class="mono">KeyReleasedEvent(keyCode)</code></td><td>&nbsp;</td></tr>
-      <tr><td><code class="mono">keydown</code> 且 <code class="mono">e.key.length === 1</code></td><td><code class="mono">KeyTypedEvent(keyCode)</code></td><td>只有能产生字符的键</td></tr>
+      <tr><td><code class="mono">keydown</code></td><td><code class="mono">KeyPressedEvent(code, repeatCount)</code></td><td><code class="mono">code = e.code</code>（物理键，布局无关）、<code class="mono">repeatCount = e.repeat ? 1 : 0</code></td></tr>
+      <tr><td><code class="mono">keyup</code></td><td><code class="mono">KeyReleasedEvent(code)</code></td><td><code class="mono">code = e.code</code></td></tr>
+      <tr><td><code class="mono">keydown</code> 且 <code class="mono">e.key.length === 1</code></td><td><code class="mono">KeyTypedEvent(key)</code></td><td>只有能产生字符的键，<code class="mono">key = e.key</code></td></tr>
       <tr><td><code class="mono">mousemove</code></td><td><code class="mono">MouseMovedEvent(x, y)</code></td><td><code class="mono">x = e.clientX - rect.left</code>（<code class="mono">rect = canvas.getBoundingClientRect()</code>）</td></tr>
       <tr><td><code class="mono">wheel</code></td><td><code class="mono">MouseScrolledEvent(deltaX, deltaY)</code></td><td>注意 <code class="mono">e.deltaMode</code>（像素 vs 行）</td></tr>
       <tr><td><code class="mono">mousedown</code> / <code class="mono">mouseup</code></td><td><code class="mono">MouseButtonPressed/ReleasedEvent(button)</code></td><td><code class="mono">e.button</code>：0=左、1=中、2=右</td></tr>

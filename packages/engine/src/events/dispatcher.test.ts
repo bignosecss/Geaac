@@ -30,7 +30,7 @@ describe('isInCategory', () => {
 
 describe('EventDispatcher', () => {
   it('runs the handler when the event type matches and reports handled', () => {
-    const event = new KeyPressedEvent(65, 1)
+    const event = new KeyPressedEvent('KeyA', 1)
     const dispatcher = new EventDispatcher(event)
 
     const ran = dispatcher.dispatch(KeyPressedEvent, (e) => {
@@ -43,7 +43,7 @@ describe('EventDispatcher', () => {
   })
 
   it('does not run the handler when the event type does not match', () => {
-    const event = new KeyPressedEvent(65, 1)
+    const event = new KeyPressedEvent('KeyA', 1)
     const dispatcher = new EventDispatcher(event)
 
     let called = false
@@ -58,7 +58,7 @@ describe('EventDispatcher', () => {
   })
 
   it('does not mark handled when the handler returns false', () => {
-    const event = new KeyPressedEvent(65, 1)
+    const event = new KeyPressedEvent('KeyA', 1)
     const dispatcher = new EventDispatcher(event)
 
     const ran = dispatcher.dispatch(KeyPressedEvent, () => false)

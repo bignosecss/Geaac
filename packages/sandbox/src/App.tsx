@@ -44,7 +44,9 @@ export function App() {
     setMouse({ x: e.x, y: e.y })
   })
   useEvent(application?.events ?? null, EventType.KeyPressed, (e: KeyPressedEvent) => {
-    setLastKey(e.repeatCount > 0 ? `KeyPressed (repeat ${e.repeatCount})` : 'KeyPressed')
+    setLastKey(
+      e.repeatCount > 0 ? `KeyPressed ${e.code} (repeat ${e.repeatCount})` : `KeyPressed ${e.code}`,
+    )
   })
 
   return (

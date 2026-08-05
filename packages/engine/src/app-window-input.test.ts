@@ -62,7 +62,7 @@ describe('AppWindow input bridge', () => {
       const sink = createSinkSpy()
       win.attach(sink.fn)
       win.detach()
-      win.canvas.dispatchEvent(new KeyboardEvent('keydown', { keyCode: 65 }))
+      win.canvas.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyA' }))
       expect(sink.events).toEqual([])
     })
 
@@ -72,7 +72,7 @@ describe('AppWindow input bridge', () => {
       const second = createSinkSpy()
       win.attach(first.fn)
       win.attach(second.fn)
-      win.canvas.dispatchEvent(new KeyboardEvent('keydown', { keyCode: 65 }))
+      win.canvas.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyA' }))
       expect(first.events).toEqual([])
       expect(second.events).toHaveLength(1)
     })
@@ -91,11 +91,11 @@ describe('AppWindow input bridge', () => {
       const win = createWindow()
       const sink = createSinkSpy()
       win.attach(sink.fn)
-      win.canvas.dispatchEvent(new KeyboardEvent('keydown', { keyCode: 65 }))
+      win.canvas.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyA' }))
       expect(sink.events).toHaveLength(1)
       const ev = sink.events[0] as KeyPressedEvent
       expect(ev).toBeInstanceOf(KeyPressedEvent)
-      expect(ev.keyCode).toBe(65)
+      expect(ev.code).toBe('KeyA')
       expect(ev.repeatCount).toBe(0)
     })
 
@@ -103,7 +103,7 @@ describe('AppWindow input bridge', () => {
       const win = createWindow()
       const sink = createSinkSpy()
       win.attach(sink.fn)
-      win.canvas.dispatchEvent(new KeyboardEvent('keydown', { keyCode: 65, repeat: true }))
+      win.canvas.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyA', repeat: true }))
       expect((sink.events[0] as KeyPressedEvent).repeatCount).toBe(1)
     })
 
@@ -111,11 +111,11 @@ describe('AppWindow input bridge', () => {
       const win = createWindow()
       const sink = createSinkSpy()
       win.attach(sink.fn)
-      win.canvas.dispatchEvent(new KeyboardEvent('keyup', { keyCode: 66 }))
+      win.canvas.dispatchEvent(new KeyboardEvent('keyup', { code: 'KeyB' }))
       expect(sink.events).toHaveLength(1)
       const ev = sink.events[0] as KeyReleasedEvent
       expect(ev).toBeInstanceOf(KeyReleasedEvent)
-      expect(ev.keyCode).toBe(66)
+      expect(ev.code).toBe('KeyB')
     })
 
     it('attach makes the canvas focusable', () => {
@@ -129,7 +129,7 @@ describe('AppWindow input bridge', () => {
       const win = createWindow()
       const sink = createSinkSpy()
       win.attach(sink.fn)
-      window.dispatchEvent(new KeyboardEvent('keydown', { keyCode: 65 }))
+      window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyA' }))
       expect(sink.events).toEqual([])
     })
   })

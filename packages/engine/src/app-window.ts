@@ -135,12 +135,13 @@ export class AppWindow {
   // reference the same function identity.
 
   private handleKeyDown = (e: KeyboardEvent): void => {
-    // DOM reports repeat as a boolean flag; the event wants a count.
-    this.sink?.(new KeyPressedEvent(e.keyCode, e.repeat ? 1 : 0))
+    // `code` is the physical key (layout-independent); DOM reports repeat as a
+    // boolean flag while the event wants a count.
+    this.sink?.(new KeyPressedEvent(e.code, e.repeat ? 1 : 0))
   }
 
   private handleKeyUp = (e: KeyboardEvent): void => {
-    this.sink?.(new KeyReleasedEvent(e.keyCode))
+    this.sink?.(new KeyReleasedEvent(e.code))
   }
 
   private handleMouseMove = (e: MouseEvent): void => {

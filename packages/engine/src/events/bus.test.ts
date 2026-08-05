@@ -9,29 +9,29 @@ import { MouseButtonPressedEvent } from '#engine/events/mouse-button-events'
 describe('EventBus', () => {
   it('delivers events to type subscribers', () => {
     const bus = new EventBus()
-    const calls: number[] = []
+    const calls: string[] = []
     bus.on(EventType.KeyPressed, (e) => {
-      calls.push((e as KeyPressedEvent).keyCode)
+      calls.push((e as KeyPressedEvent).code)
     })
 
-    bus.publish(new KeyPressedEvent(65, 1))
-    bus.publish(new KeyPressedEvent(66, 1))
+    bus.publish(new KeyPressedEvent('KeyA', 1))
+    bus.publish(new KeyPressedEvent('KeyB', 1))
 
-    expect(calls).toEqual([65, 66])
+    expect(calls).toEqual(['KeyA', 'KeyB'])
   })
 
   it('returns an unsubscribe function from on()', () => {
     const bus = new EventBus()
-    const calls: number[] = []
+    const calls: string[] = []
     const off = bus.on(EventType.KeyPressed, (e) => {
-      calls.push((e as KeyPressedEvent).keyCode)
+      calls.push((e as KeyPressedEvent).code)
     })
 
-    bus.publish(new KeyPressedEvent(1, 1))
+    bus.publish(new KeyPressedEvent('KeyC', 1))
     off()
-    bus.publish(new KeyPressedEvent(2, 1))
+    bus.publish(new KeyPressedEvent('KeyD', 1))
 
-    expect(calls).toEqual([1])
+    expect(calls).toEqual(['KeyC'])
   })
 
   it('stops dispatch once an event is handled', () => {
@@ -46,7 +46,7 @@ describe('EventBus', () => {
       calls.push('second')
     })
 
-    bus.publish(new KeyPressedEvent(65, 1))
+    bus.publish(new KeyPressedEvent('KeyA', 1))
 
     expect(calls).toEqual(['first'])
   })
@@ -100,6 +100,6 @@ describe('EventBus', () => {
 
   it('does nothing for events with no subscribers', () => {
     const bus = new EventBus()
-    expect(() => bus.publish(new KeyPressedEvent(65, 1))).not.toThrow()
+    expect(() => bus.publish(new KeyPressedEvent('KeyA', 1))).not.toThrow()
   })
 })

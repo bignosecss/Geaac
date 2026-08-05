@@ -16,8 +16,11 @@ export class KeyPressedEvent extends Event {
     EventCategory.EventCategoryInput | EventCategory.EventCategoryKeyboard
 
   constructor(
-    /** Platform-specific key code (no layout applied). */
-    public readonly keyCode: number,
+    /**
+     * Physical key identifier (layout-independent), e.g. `KeyW`, `ArrowUp`,
+     * `Space`. Maps directly to `KeyboardEvent.code`.
+     */
+    public readonly code: string,
     /**
      * 0 on the initial press, `n > 0` for auto-repeat events while the key
      * is held.
@@ -28,7 +31,7 @@ export class KeyPressedEvent extends Event {
   }
 
   public toString(): string {
-    return `KeyPressed: ${this.keyCode} (${this.repeatCount} repeats)`
+    return `KeyPressed: ${this.code} (${this.repeatCount} repeats)`
   }
 }
 
@@ -39,14 +42,15 @@ export class KeyReleasedEvent extends Event {
     EventCategory.EventCategoryInput | EventCategory.EventCategoryKeyboard
 
   /**
-   * Platform-specific key code (no layout applied).
+   * Physical key identifier (layout-independent), e.g. `KeyW`, `ArrowUp`,
+   * `Space`. Maps directly to `KeyboardEvent.code`.
    */
-  constructor(public readonly keyCode: number) {
+  constructor(public readonly code: string) {
     super()
   }
 
   public toString(): string {
-    return `KeyReleased: ${this.keyCode}`
+    return `KeyReleased: ${this.code}`
   }
 }
 
@@ -59,15 +63,16 @@ export class KeyTypedEvent extends Event {
     EventCategory.EventCategoryInput | EventCategory.EventCategoryKeyboard
 
   /**
-   * Code of the key that produced the typed character. Note: not necessarily
-   * the same as a `KeyPressed` keyCode for the same physical key once layout
-   * and modifiers are applied.
+   * The character the key produced (post-layout, post-modifier), e.g. `a`,
+   * `A`, `1`. Maps directly to `KeyboardEvent.key`. Note: not necessarily the
+   * same as a `KeyPressed` `code` for the same physical key once layout and
+   * modifiers are applied.
    */
-  constructor(public readonly keyCode: number) {
+  constructor(public readonly key: string) {
     super()
   }
 
   public toString(): string {
-    return `KeyTyped: ${this.keyCode}`
+    return `KeyTyped: ${this.key}`
   }
 }

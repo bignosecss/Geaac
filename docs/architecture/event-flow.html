@@ -202,7 +202,7 @@ flowchart TB
     RAW["raw events: key, mouse, tick<br/>OS or Browser"]
 
     subgraph PUB["01 Publisher: any event source"]
-        WIN["Window input<br/>keyCode, x, y, w, h"]
+        WIN["Window input<br/>code, x, y, w, h"]
         TICK["AppTick timer"]
         ASSET["Asset loader done"]
     end
@@ -367,7 +367,7 @@ flowchart TB
     const dispatcher = new EventDispatcher(event)
 
     dispatcher.dispatch(KeyPressedEvent, (e) =&gt; {
-      console.log('key', e.keyCode, 'repeat', e.repeatCount)
+      console.log('key', e.code, 'repeat', e.repeatCount)
       return true   // 消费掉，bus 后续不再分发
     })
 

@@ -325,12 +325,13 @@ flowchart TB
       <p><strong>订阅者是等在出口的人。</strong>只关心自己要接的那类人，到了就带走。</p>
       <p class="quote">核心洞见：<strong>一旦入境，没人再关心你来自哪个航站楼、哪种飞机。</strong>下游所有人只讲引擎语。这就是那集真正教的东西——不是某个回调函数，而是"谁负责翻译、谁负责路由、谁负责消费"这种职责隔离。</p>
     </div>
+    <p class="quote" style="margin-top:14px;"><code class="mono">handled</code> 有<strong>两个出口</strong>，别混在一起：引擎内部的 <code class="mono">handled=true</code> 让 bus 短路、后面的订阅者不再收到；浏览器边界的 <code class="mono">preventDefault()</code> 抑制默认动作（比如 Space/箭头滚动页面）。前者是路由层的事，后者是 AppWindow 这个海关的事——消费决策由 <code class="mono">consumedKeys</code> 策略给出，跟"游戏逻辑有没有接住这个事件"无关。</p>
   </section>
 
   <!-- 浏览器 vs GLFW 的坑 -->
   <section>
-    <h2><span class="num">3</span>浏览器 ≠ GLFW：四个坑</h2>
-    <p>GLFW 的回调是 1:1 的（窗口变了→resize 回调）。浏览器里 canvas 的尺寸归 CSS 管、没有"关闭"事件、按键重复只给布尔标志。以下四处，是移植时最容易想当然的地方。</p>
+    <h2><span class="num">3</span>浏览器 ≠ GLFW：五个坑</h2>
+    <p>GLFW 的回调是 1:1 的（窗口变了→resize 回调）。浏览器里 canvas 的尺寸归 CSS 管、没有"关闭"事件、按键重复只给布尔标志、默认动作还要自己吃。以下五处，是移植时最容易想当然的地方。</p>
     <div class="loop">
       <div class="card">
         <div class="label">坑 1 · Resize</div>
@@ -351,6 +352,11 @@ flowchart TB
         <div class="label">坑 4 · Focus</div>
         <h3>canvas 不自动拿键盘</h3>
         <p>键盘监听挂在 <code class="mono">canvas</code> 上，而不是 <code class="mono">window</code>——canvas 才是游戏边界，页面其他 UI（输入框、未来的编辑器）的按键不该漏进游戏。引擎在 <code class="mono">attach</code> 时给 canvas 设 <code class="mono">tabIndex={0}</code> 使其可聚焦，宿主在游戏激活时 <code class="mono">canvas.focus()</code>。焦点在页面其他元素上时，游戏天然收不到键盘事件——这是对 GLFW"窗口抓全局输入"的<strong>有意偏离</strong>。鼠标留在 canvas 上——坐标本来就相对 canvas。</p>
+      </div>
+      <div class="card">
+        <div class="label">坑 5 · Consumption</div>
+        <h3>GLFW 窗口后面没有页面，浏览器有</h3>
+        <p>GLFW 窗口就是整个应用，按 Space / 箭头不会"滚动"任何东西。浏览器 canvas 后面还有一层可滚动的页面——canvas 聚焦时，Space / 箭头<strong>默认会滚动页面</strong>，而这些键正是游戏要用的。所以引擎在 <code class="mono">handleKeyDown</code> 里对"游戏键"（默认 <code class="mono">consumedKeys</code> = Space + 四方向，可配置）调 <code class="mono">e.preventDefault()</code>。滚轮同理：<code class="mono">handleWheel</code> 默认也消费（<code class="mono">consumeWheel: true</code>，可关），鼠标悬停 canvas 滚动就不会滚页面了。<code class="mono">preventDefault</code> 是 DOM 调用，只抑制<strong>浏览器的默认动作</strong>，引擎事件照常进 bus——它和引擎内部的 <code class="mono">handled</code>（bus 短路）是两件不同的事。</p>
       </div>
     </div>
   </section>
@@ -451,7 +457,9 @@ export class AppWindow {
         <li>谁拥有 bus？→ <code class="mono">Application</code></li>
         <li>谁把 DOM 翻译成引擎事件？→ <code class="mono">AppWindow</code>（<code class="mono">attach</code> / <code class="mono">detach</code>）</li>
         <li>翻译时改了哪些字段？→ 坐标（减 <code class="mono">rect.left/top</code>）、<code class="mono">repeatCount</code>、<code class="mono">button</code>、<code class="mono">delta</code></li>
-        <li>四个浏览器坑都处理了吗？→ <code class="mono">ResizeObserver</code> / close 走生命周期 / repeat 布尔转数字 / canvas focus</li>
+        <li>五个浏览器坑都处理了吗？→ <code class="mono">ResizeObserver</code> / close 走生命周期 / repeat 布尔转数字 / canvas focus / <code class="mono">consumedKeys</code> 消费默认动作</li>
+        <li>游戏键滚动了页面吗？→ <code class="mono">AppWindow</code> 的 <code class="mono">consumedKeys</code>（默认 Space + 方向键）命中即 <code class="mono">preventDefault</code>，事件照常发布</li>
+        <li>滚轮滚动了页面吗？→ 默认 <code class="mono">consumeWheel: true</code>，悬停 canvas 即 <code class="mono">preventDefault</code>（滚轮没有焦点门，悬停即生效）</li>
         <li>卸载时摘掉监听了吗？→ <code class="mono">Application.close()</code> 里 <code class="mono">window.detach()</code>，防 React StrictMode 双注册</li>
       </ul>
     </div>

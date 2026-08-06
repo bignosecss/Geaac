@@ -76,11 +76,11 @@ engine reusable across browser consumers.
 
 Status: event pipeline complete — blocking EventBus, AppWindow DOM→Event
 bridge (attach/detach), Application-owned bus, keyboard scoped to the canvas,
-keyCode→code/key migration, React `useEvent` hook (single-type subscription),
-and a data-driven sandbox event inspector.
-Next: input consumption (`preventDefault` on game keys such as Space/arrows to
-stop the page scrolling); wire `KeyTypedEvent` production (keydown where
-`e.key.length === 1`) for future text input.
+keyCode→code/key migration, input consumption (`preventDefault` on game keys
+and the wheel), React `useEvent` hook (single-type subscription), and a
+data-driven sandbox event inspector.
+Next: wire `KeyTypedEvent` production (keydown where `e.key.length === 1`) for
+future text input.
 
 ### `@geaac/sandbox`
 
@@ -317,6 +317,26 @@ string>` for the typed reverse lookup.
   so the module stays Node-testable. Browser input wiring (`window`/`canvas`
   listeners, `Application`-owned bus, React `useEvent` hook) is intentionally
   the next slice.
+
+### 2026-08-06 - Input consumption is an engine-owned DOM policy
+
+- **Decision**: AppWindow suppresses the browser default action
+  (`preventDefault`) for a configurable set of "game keys" — defaulting to the
+  scroll keys (Space + four arrows) via `AppWindowConfig.consumedKeys`, checked
+  in `handleKeyDown` by physical `code` — and for wheel events over the canvas
+  via `AppWindowConfig.consumeWheel` (default `true`).
+- **Rationale**: `preventDefault` is a DOM-boundary call, so it belongs in
+  AppWindow — the only layer that knows the DOM — not in the bus. It is a
+  second, separate kind of "handled": `Event.handled` short-circuits engine
+  dispatch, while consumption suppresses the browser default action without
+  stopping the engine event (the game still needs the `KeyPressedEvent`).
+  Whether a key needs consumption is a property of its browser default
+  (Space/arrows scroll), not of whether game code claimed it, so the two must
+  not be coupled.
+- **Scope**: keydown only — page scroll fires on keydown (incl. auto-repeat);
+  keyup has no scroll default. The wheel is consumed hover-scoped (it has no
+  focus gate, unlike keys). `KeyTypedEvent` production remains a separate
+  follow-up.
 
 ## Open questions
 

@@ -77,10 +77,11 @@ engine reusable across browser consumers.
 Status: event pipeline complete — blocking EventBus, AppWindow DOM→Event
 bridge (attach/detach), Application-owned bus, keyboard scoped to the canvas,
 keyCode→code/key migration, input consumption (`preventDefault` on game keys
-and the wheel), React `useEvent` hook (single-type subscription), and a
+and the wheel), KeyPressed/KeyTyped production (char keys emit a KeyTypedEvent
+from the same keydown), React `useEvent` hook (single-type subscription), and a
 data-driven sandbox event inspector.
-Next: wire `KeyTypedEvent` production (keydown where `e.key.length === 1`) for
-future text input.
+Next: the renderer slice — the first real consumer of the input pipeline
+(deferred in Open questions).
 
 ### `@geaac/sandbox`
 
@@ -335,8 +336,24 @@ string>` for the typed reverse lookup.
   not be coupled.
 - **Scope**: keydown only — page scroll fires on keydown (incl. auto-repeat);
   keyup has no scroll default. The wheel is consumed hover-scoped (it has no
-  focus gate, unlike keys). `KeyTypedEvent` production remains a separate
-  follow-up.
+  focus gate, unlike keys).
+
+### 2026-08-06 - KeyTypedEvent derives from keydown in AppWindow
+
+- **Decision**: AppWindow produces a `KeyTypedEvent` from the same keydown
+  that produces `KeyPressedEvent`, publishing it second, whenever
+  `e.key.length === 1`. `KeyTypedEvent` was already defined; this is the
+  production side of the contract.
+- **Rationale**: GLFW gives Hazel a separate char callback
+  (`glfwSetCharCallback`); the DOM reports both the physical code and the
+  produced character in one `keydown`. The engine therefore derives the
+  character stream from `e.key` (post-layout, post-modifier) rather than a
+  second listener. `length === 1` is the printable-character heuristic.
+- **Scope**: character keys only. Enter/Tab/Backspace report multi-char
+  `e.key` values and stay in the KeyPressed stream; CJK IME composition is out
+  of scope (keydown reports `Process`/`isComposing`, and the composed text
+  surfaces through the DOM's composition events, not keydown). Repeated
+  keydowns still emit KeyTypedEvent; it carries no repeat field.
 
 ## Open questions
 

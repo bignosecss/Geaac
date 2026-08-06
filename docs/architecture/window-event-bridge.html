@@ -457,6 +457,7 @@ export class AppWindow {
         <li>谁拥有 bus？→ <code class="mono">Application</code></li>
         <li>谁把 DOM 翻译成引擎事件？→ <code class="mono">AppWindow</code>（<code class="mono">attach</code> / <code class="mono">detach</code>）</li>
         <li>翻译时改了哪些字段？→ 坐标（减 <code class="mono">rect.left/top</code>）、<code class="mono">repeatCount</code>、<code class="mono">button</code>、<code class="mono">delta</code></li>
+        <li>字符输入走哪条流？→ <code class="mono">KeyTypedEvent</code>（<code class="mono">e.key.length === 1</code> 的 keydown 才发，布局/修饰键生效后）；游戏操控走 <code class="mono">KeyPressedEvent</code>（物理键，布局无关）</li>
         <li>五个浏览器坑都处理了吗？→ <code class="mono">ResizeObserver</code> / close 走生命周期 / repeat 布尔转数字 / canvas focus / <code class="mono">consumedKeys</code> 消费默认动作</li>
         <li>游戏键滚动了页面吗？→ <code class="mono">AppWindow</code> 的 <code class="mono">consumedKeys</code>（默认 Space + 方向键）命中即 <code class="mono">preventDefault</code>，事件照常发布</li>
         <li>滚轮滚动了页面吗？→ 默认 <code class="mono">consumeWheel: true</code>，悬停 canvas 即 <code class="mono">preventDefault</code>（滚轮没有焦点门，悬停即生效）</li>

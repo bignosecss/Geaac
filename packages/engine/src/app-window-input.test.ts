@@ -2,7 +2,7 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { AppWindow } from '#engine/app-window'
+import { AppWindow, DEFAULT_CONSUMED_KEYS, type AppWindowConfig } from '#engine/app-window'
 import { WindowResizeEvent } from '#engine/events/application-events'
 import type { Event } from '#engine/events/event'
 import { KeyPressedEvent, KeyReleasedEvent } from '#engine/events/key-events'
@@ -50,8 +50,8 @@ describe('AppWindow input bridge', () => {
     vi.restoreAllMocks()
   })
 
-  function createWindow(): AppWindow {
-    const win = new AppWindow({ title: 'Test' }, document.createElement('canvas'))
+  function createWindow(config?: Partial<AppWindowConfig>): AppWindow {
+    const win = new AppWindow({ title: 'Test', ...config }, document.createElement('canvas'))
     windows.push(win)
     return win
   }
@@ -134,6 +134,41 @@ describe('AppWindow input bridge', () => {
     })
   })
 
+  describe('input consumption', () => {
+    it.each(DEFAULT_CONSUMED_KEYS)('consumes the default scroll key %s on keydown', (code) => {
+      const win = createWindow()
+      const sink = createSinkSpy()
+      win.attach(sink.fn)
+      // Real keydown events are cancelable; jsdom defaults to not.
+      const domEvent = new KeyboardEvent('keydown', { code, cancelable: true })
+      win.canvas.dispatchEvent(domEvent)
+      expect(domEvent.defaultPrevented).toBe(true)
+      expect((sink.events[0] as KeyPressedEvent).code).toBe(code)
+    })
+
+    it('leaves non-consumed keys to the browser', () => {
+      const win = createWindow()
+      const sink = createSinkSpy()
+      win.attach(sink.fn)
+      const domEvent = new KeyboardEvent('keydown', { code: 'KeyA', cancelable: true })
+      win.canvas.dispatchEvent(domEvent)
+      expect(domEvent.defaultPrevented).toBe(false)
+      expect(sink.events).toHaveLength(1)
+    })
+
+    it('honors a custom consumedKeys set', () => {
+      const win = createWindow({ consumedKeys: ['Space'] })
+      const sink = createSinkSpy()
+      win.attach(sink.fn)
+      const space = new KeyboardEvent('keydown', { code: 'Space', cancelable: true })
+      const arrowUp = new KeyboardEvent('keydown', { code: 'ArrowUp', cancelable: true })
+      win.canvas.dispatchEvent(space)
+      win.canvas.dispatchEvent(arrowUp)
+      expect(space.defaultPrevented).toBe(true)
+      expect(arrowUp.defaultPrevented).toBe(false)
+    })
+  })
+
   describe('mouse motion', () => {
     it('translates mousemove to canvas-relative coordinates', () => {
       const win = createWindow()
@@ -168,6 +203,27 @@ describe('AppWindow input bridge', () => {
       expect(ev).toBeInstanceOf(MouseScrolledEvent)
       expect(ev.xOffset).toBe(10)
       expect(ev.yOffset).toBe(-30)
+    })
+
+    it('consumes wheel over the canvas by default', () => {
+      const win = createWindow()
+      const sink = createSinkSpy()
+      win.attach(sink.fn)
+      // Real wheel events are cancelable; jsdom defaults to not.
+      const domEvent = new WheelEvent('wheel', { deltaY: 10, cancelable: true })
+      win.canvas.dispatchEvent(domEvent)
+      expect(domEvent.defaultPrevented).toBe(true)
+      expect(sink.events).toHaveLength(1)
+    })
+
+    it('honors consumeWheel: false', () => {
+      const win = createWindow({ consumeWheel: false })
+      const sink = createSinkSpy()
+      win.attach(sink.fn)
+      const domEvent = new WheelEvent('wheel', { deltaY: 10, cancelable: true })
+      win.canvas.dispatchEvent(domEvent)
+      expect(domEvent.defaultPrevented).toBe(false)
+      expect(sink.events).toHaveLength(1)
     })
   })
 

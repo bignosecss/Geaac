@@ -1,5 +1,5 @@
 export { Application, createApplication } from '#engine/application'
-export { AppWindow, createAppWindow } from '#engine/app-window'
+export { AppWindow, createAppWindow, DEFAULT_CONSUMED_KEYS } from '#engine/app-window'
 export { ENGINE_VERSION } from '#engine/version'
 export * from '#engine/log/index'
 export * from '#engine/events/index'

@@ -25,6 +25,22 @@ import { coreLogger } from '#engine/log/index'
 export type AppWindowConfig = {
   /** Window title, available for display and diagnostics. */
   readonly title: string
+  /**
+   * Physical key codes (`KeyboardEvent.code`) whose default browser action is
+   * suppressed while the game owns the keyboard — e.g. Space/arrows would
+   * otherwise scroll the page. Consumption only suppresses the default action;
+   * the engine event is still published unchanged. Defaults to
+   * {@link DEFAULT_CONSUMED_KEYS}.
+   */
+  readonly consumedKeys?: readonly string[]
+  /**
+   * When true, wheel events over the canvas are consumed (`preventDefault`),
+   * so scrolling on the canvas never scrolls or zooms the page. Unlike keys,
+   * the wheel has no focus gate — the canvas's wheel listener fires on hover —
+   * so consumption applies whenever the cursor is over the canvas. The engine
+   * event is still published unchanged. Defaults to `true`.
+   */
+  readonly consumeWheel?: boolean
 }
 
 /**
@@ -36,6 +52,21 @@ export type AppWindowConfig = {
  * into this sink via {@link AppWindow.attach}.
  */
 export type EventSink = (event: Event) => void
+
+/**
+ * Physical key codes the engine treats as game controls and consumes on
+ * keydown — their default browser action (page scroll for Space/arrows) is
+ * suppressed while the canvas owns the keyboard. Extend with
+ * `[...DEFAULT_CONSUMED_KEYS, 'KeyW']` to add game keys without losing the
+ * scroll-key defaults.
+ */
+export const DEFAULT_CONSUMED_KEYS = [
+  'Space',
+  'ArrowUp',
+  'ArrowDown',
+  'ArrowLeft',
+  'ArrowRight',
+] as const
 
 /**
  * Wraps a host-owned `HTMLCanvasElement` and exposes its CSS layout
@@ -59,10 +90,16 @@ export class AppWindow {
   private sink: EventSink | null = null
   /** Observes canvas layout changes to produce {@link WindowResizeEvent}. */
   private resizeObserver: ResizeObserver | null = null
+  /** Physical key codes whose default browser action is suppressed on keydown. */
+  private readonly consumedKeys: ReadonlySet<string>
+  /** Whether wheel events over the canvas are consumed (page scroll/zoom). */
+  private readonly consumeWheel: boolean
 
   constructor(config: AppWindowConfig, canvas: HTMLCanvasElement) {
     this.title = config.title
     this.canvas = canvas
+    this.consumedKeys = new Set(config.consumedKeys ?? DEFAULT_CONSUMED_KEYS)
+    this.consumeWheel = config.consumeWheel ?? true
     coreLogger.info(`Created window: ${this.title} (${this.width}x${this.height})`)
   }
 
@@ -135,6 +172,9 @@ export class AppWindow {
   // reference the same function identity.
 
   private handleKeyDown = (e: KeyboardEvent): void => {
+    // Game keys (Space/arrows by default) would otherwise scroll the page.
+    // Suppress the browser default action, but keep the engine event flowing.
+    if (this.consumedKeys.has(e.code)) e.preventDefault()
     // `code` is the physical key (layout-independent); DOM reports repeat as a
     // boolean flag while the event wants a count.
     this.sink?.(new KeyPressedEvent(e.code, e.repeat ? 1 : 0))
@@ -151,6 +191,9 @@ export class AppWindow {
   }
 
   private handleWheel = (e: WheelEvent): void => {
+    // The canvas owns the wheel: scroll/zoom here belongs to the game (camera),
+    // not the page behind it. Consume hover-scoped — the wheel has no focus gate.
+    if (this.consumeWheel) e.preventDefault()
     this.sink?.(new MouseScrolledEvent(e.deltaX, e.deltaY))
   }
 
@@ -171,6 +214,8 @@ const DEFAULT_TITLE = 'Geaac'
  *
  * Defaults (when omitted):
  * - `title` → `'Geaac'`
+ * - `consumedKeys` → {@link DEFAULT_CONSUMED_KEYS} (Space + arrow keys)
+ * - `consumeWheel` → `true`
  *
  * Canvas dimensions are **not** configurable here. The host controls sizing
  * via CSS; {@link AppWindow.width} and {@link AppWindow.height} read the

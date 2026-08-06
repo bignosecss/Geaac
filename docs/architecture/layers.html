@@ -1,0 +1,488 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Layers · GEAAC Engine</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=Outfit:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<style>
+  :root {
+    --bg: #f7f5f0;
+    --card: #ffffff;
+    --line: #e9e3d6;
+    --line-soft: #f0eadb;
+    --text: #14171e;
+    --text-mid: #3a4256;
+    --text-muted: #7c7a72;
+    --primary: #2f6f5e;
+    --primary-soft: #2f6f5e12;
+    --accent: #c97b3f;
+    --warn: #b06367;
+    --warn-soft: #b0636710;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Outfit', system-ui, -apple-system, sans-serif;
+    font-size: 15px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  body::before, body::after {
+    content: ""; position: fixed; pointer-events: none; z-index: 0;
+    width: 520px; height: 520px; border-radius: 50%;
+    filter: blur(90px); opacity: .5;
+  }
+  body::before { top: -220px; right: -120px; background: radial-gradient(circle, #2f6f5e20 0%, transparent 70%); }
+  body::after  { bottom: -220px; left: -120px;  background: radial-gradient(circle, #c97b3f1c 0%, transparent 70%); }
+
+  main { position: relative; z-index: 1; max-width: 960px; margin: 0 auto; padding: 56px 28px 96px; }
+
+  /* ----- Header ----- */
+  .eyebrow {
+    display: inline-block; font-size: 12px; font-weight: 600;
+    letter-spacing: .12em; text-transform: uppercase;
+    color: var(--primary); margin-bottom: 18px;
+    padding: 4px 10px; background: var(--primary-soft); border-radius: 999px;
+  }
+  h1 {
+    font-family: 'DM Serif Display', serif;
+    font-weight: 400; font-size: 38px; line-height: 1.15;
+    letter-spacing: -.01em; margin: 0 0 16px;
+  }
+  .lede { color: var(--text-mid); font-size: 17px; line-height: 1.55; max-width: 640px; margin: 0 0 40px; }
+
+  /* ----- Sections ----- */
+  section { margin-top: 48px; }
+  h2 {
+    font-family: 'DM Serif Display', serif; font-weight: 400;
+    font-size: 24px; line-height: 1.2; margin: 0 0 14px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  h2 .num {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 28px; height: 28px; border-radius: 50%;
+    background: var(--primary-soft); color: var(--primary);
+    font-family: 'Outfit', sans-serif; font-size: 13px; font-weight: 600;
+  }
+  h3 {
+    font-size: 15px; font-weight: 600; margin: 0 0 8px;
+    color: var(--text); letter-spacing: -.005em;
+  }
+  p { margin: 0 0 12px; color: var(--text-mid); }
+  p strong { color: var(--text); font-weight: 600; }
+  code, .mono { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 13px; }
+  code { background: #ede7d4; color: #4a3a2a; padding: 1px 6px; border-radius: 4px; }
+  pre {
+    background: #1a1a2e; color: #e8e3d3; border-radius: 12px;
+    padding: 18px 20px; overflow-x: auto; line-height: 1.55;
+    font-size: 13px; margin: 12px 0 4px;
+    box-shadow: 0 2px 8px rgba(0,0,0,.04);
+  }
+  pre code { background: transparent; color: inherit; padding: 0; font-size: 13px; }
+
+  /* ----- Cards ----- */
+  .card {
+    background: var(--card); border: 1px solid var(--line);
+    border-radius: 16px; padding: 22px 24px;
+    box-shadow: 0 2px 8px rgba(0,0,0,.03);
+  }
+  .card + .card { margin-top: 14px; }
+
+  /* ----- Tiles (4 layers) ----- */
+  .tiles {
+    display: grid; grid-template-columns: repeat(4, 1fr);
+    gap: 14px; margin-top: 18px;
+  }
+  .tile {
+    background: var(--card); border: 1px solid var(--line);
+    border-radius: 14px; padding: 16px 16px 18px;
+    box-shadow: 0 2px 8px rgba(0,0,0,.03);
+    transition: transform .2s ease, box-shadow .2s ease;
+  }
+  .tile:hover { transform: translateY(-2px); box-shadow: 0 6px 18px rgba(0,0,0,.06); }
+  .tile .badge {
+    display: inline-block; font-size: 10px; font-weight: 700;
+    letter-spacing: .12em; text-transform: uppercase;
+    color: var(--primary); margin-bottom: 8px;
+  }
+  .tile h3 { font-size: 15px; margin-bottom: 4px; }
+  .tile p  { font-size: 13px; line-height: 1.5; color: var(--text-muted); margin: 0; }
+  .tile .icon { color: var(--primary); margin-bottom: 10px; }
+
+  /* ----- Diagram wrapper ----- */
+  .diagram {
+    background: var(--card); border: 1px solid var(--line);
+    border-radius: 16px; padding: 28px 24px;
+    box-shadow: 0 2px 8px rgba(0,0,0,.03);
+    overflow-x: auto;
+  }
+  .mermaid { display: flex; justify-content: center; font-family: 'Outfit', sans-serif !important; }
+
+  /* ----- Legend ----- */
+  .legend {
+    display: flex; flex-wrap: wrap; gap: 18px 28px;
+    margin-top: 16px; padding: 14px 18px;
+    background: var(--card); border: 1px dashed var(--line);
+    border-radius: 12px; font-size: 13px; color: var(--text-muted);
+  }
+  .legend .item { display: inline-flex; align-items: center; gap: 8px; }
+  .legend .swatch { width: 14px; height: 14px; border-radius: 4px; }
+
+  /* ----- Step list (handled) ----- */
+  .steps { list-style: none; padding: 0; margin: 14px 0 0; }
+  .steps li {
+    display: grid; grid-template-columns: 28px 1fr;
+    gap: 14px; padding: 10px 0;
+    border-bottom: 1px dashed var(--line);
+  }
+  .steps li:last-child { border-bottom: none; }
+  .steps .n {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 24px; height: 24px; border-radius: 50%;
+    background: var(--primary-soft); color: var(--primary);
+    font-weight: 600; font-size: 12px;
+  }
+  .steps .body { color: var(--text-mid); }
+  .steps .body code { font-size: 12px; }
+
+  /* ----- Loop diagram (layer as publisher) ----- */
+  .loop {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 14px; margin-top: 16px;
+  }
+  .loop .card { padding: 18px 20px; }
+  .loop .label {
+    font-size: 11px; font-weight: 700; letter-spacing: .12em;
+    text-transform: uppercase; color: var(--accent); margin-bottom: 6px;
+  }
+  .loop .icon { color: var(--accent); }
+
+  /* ----- Mapping table ----- */
+  .table {
+    width: 100%; border-collapse: collapse; margin-top: 16px;
+    font-size: 13px; color: var(--text-mid);
+    background: var(--card); border: 1px solid var(--line); border-radius: 12px;
+    overflow: hidden;
+  }
+  .table th, .table td { text-align: left; padding: 10px 14px; border-bottom: 1px solid var(--line-soft); vertical-align: top; }
+  .table th {
+    font-size: 11px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
+    color: var(--primary); background: var(--primary-soft);
+  }
+  .table tr:last-child td { border-bottom: none; }
+  .table td code { font-size: 12px; white-space: nowrap; }
+  .table .ok { color: var(--primary); font-weight: 600; }
+  .table .todo { color: var(--accent); font-weight: 600; }
+
+  /* ----- Quote ----- */
+  .quote {
+    border-left: 3px solid var(--primary);
+    padding: 6px 0 6px 18px; margin: 16px 0;
+    color: var(--text-mid); font-style: italic;
+  }
+
+  /* ----- Checklist ----- */
+  .checklist { list-style: none; padding: 0; margin: 12px 0 0; }
+  .checklist li { padding: 7px 0 7px 26px; position: relative; color: var(--text-mid); }
+  .checklist li::before {
+    content: ""; position: absolute; left: 2px; top: 13px;
+    width: 12px; height: 12px; border: 2px solid var(--primary);
+    border-radius: 4px;
+  }
+  .checklist li code { font-size: 12px; }
+
+  /* ----- Footer ----- */
+  footer { margin-top: 64px; padding-top: 24px; border-top: 1px solid var(--line); color: var(--text-muted); font-size: 13px; }
+  footer a { color: var(--primary); text-decoration: none; }
+  footer a:hover { text-decoration: underline; }
+
+  /* ----- Responsive ----- */
+  @media (max-width: 760px) {
+    main { padding: 40px 20px 80px; }
+    h1 { font-size: 30px; }
+    .tiles { grid-template-columns: 1fr 1fr; }
+    .loop { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 460px) {
+    .tiles { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<main>
+
+  <span class="eyebrow">GEAAC · Engine Architecture</span>
+  <h1>Layers</h1>
+  <p class="lede">你看到的不是 Layer，是所有 Layer 的<strong>合成结果</strong>。这页建立 LayerStack 的 mental model：Application 怎么把一堆互不相识的模块编排成一帧，为什么同一个栈要按两个<strong>方向相反</strong>的遍历走两遍。</p>
+
+  <!-- 主流程 -->
+  <section>
+    <h2><span class="num">1</span>主流程：Application 怎么编排一堆 Layer</h2>
+    <p><code class="mono">Application</code> 拥有一个 <code class="mono">LayerStack</code>。每一帧，它对这个栈做<strong>两趟方向相反的遍历</strong>：一趟更新（底 → 顶，全员执行），一趟派发事件（顶 → 底，抓到即停）。</p>
+    <div class="diagram">
+      <div class="mermaid">
+flowchart TB
+    APP["Application<br/>run() 每一帧"]
+
+    subgraph STACK["LayerStack：一张有序名单"]
+        direction TB
+        OV2["Overlay 2 · 工具条"]
+        OV1["Overlay 1 · 菜单栏"]
+        L3["Layer 3 · Debug 面板"]
+        L2["Layer 2 · 相机控制"]
+        L1["Layer 1 · 世界渲染"]
+    end
+
+    APP -->|"拥有"| STACK
+
+    UPD["遍历 A · OnUpdate<br/>底 → 顶 · 全员每帧都跑<br/>for (layer : layers) → OnUpdate"]
+    EVT["遍历 B · OnEvent<br/>顶 → 底 · handled 即停<br/>for (layer : reverse) → OnEvent"]
+
+    STACK -->|"①"| UPD
+    STACK -->|"②"| EVT
+
+    classDef app fill:#d8ebe4,stroke:#2f6f5e,color:#1d4a3e;
+    classDef lyr fill:#ffffff,stroke:#e9e3d6,color:#14171e;
+    classDef ovr fill:#fdecd9,stroke:#c97b3f,color:#5a3a1f;
+    classDef upd fill:#d8ebe4,stroke:#2f6f5e,color:#1d4a3e;
+    classDef evt fill:#fdecd9,stroke:#c97b3f,color:#5a3a1f;
+
+    class APP app;
+    class L1,L2,L3 lyr;
+    class OV1,OV2 ovr;
+    class UPD upd;
+    class EVT evt;
+      </div>
+    </div>
+    <div class="legend">
+      <div class="item"><span class="swatch" style="background:#d8ebe4;border:1px solid #2f6f5e"></span>Application · 拥有栈、跑两趟遍历</div>
+      <div class="item"><span class="swatch" style="background:#fff;border:1px solid #e9e3d6"></span>Layer · 世界里的贡献单元</div>
+      <div class="item"><span class="swatch" style="background:#fdecd9;border:1px solid #c97b3f"></span>Overlay · 永远最顶</div>
+      <div class="item"><span class="swatch" style="background:#d8ebe4;border:1px dashed #2f6f5e"></span>遍历 A · 每帧全员更新</div>
+      <div class="item"><span class="swatch" style="background:#fdecd9;border:1px dashed #c97b3f"></span>遍历 B · 事件短路</div>
+    </div>
+  </section>
+
+  <!-- mental model + 类比 -->
+  <section>
+    <h2><span class="num">2</span>mental model：投影仪 + 透明片</h2>
+    <div class="tiles">
+      <div class="tile">
+        <div class="icon">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M10 8l6 4-6 4V8z"/></svg>
+        </div>
+        <div class="badge">Application</div>
+        <h3>指挥 / 投影仪</h3>
+        <p>拥有 <code class="mono">LayerStack</code>。每帧先 <code class="mono">OnUpdate</code> 全员，再对每个事件 <code class="mono">OnEvent</code>。不关心任何具体 Layer 是什么。</p>
+      </div>
+      <div class="tile">
+        <div class="icon">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+        </div>
+        <div class="badge">LayerStack</div>
+        <h3>一张有序名单</h3>
+        <p><code class="mono">std::vector&lt;Layer*&gt;</code>。顺序 = 谁后加谁在上面 = 谁先收事件 = 谁最后画。</p>
+      </div>
+      <div class="tile">
+        <div class="icon">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
+        </div>
+        <div class="badge">Layer</div>
+        <h3>行为的贡献单元</h3>
+        <p>每帧被 tick 一次、能收事件。常常（但不一定）产出视觉——纯逻辑层也合法。</p>
+      </div>
+      <div class="tile">
+        <div class="icon">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+        </div>
+        <div class="badge">Overlay</div>
+        <h3>永远最顶</h3>
+        <p>用胶水粘在栈顶。菜单栏、工具条、编辑器停靠。任何新 Layer 都盖不住它。</p>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:18px;">
+      <h3>投影仪类比</h3>
+      <p><strong>一台投影仪，上面摞着一沓透明胶片。每个 Layer 就是一张胶片。</strong>最底是 3D 世界渲染，往上叠相机控制、Debug 面板，最顶是菜单栏。</p>
+      <p><strong>每一帧，投影仪把整沓胶片从底到顶重画一遍。</strong>你看到的<strong>不是任何一张胶片，而是所有胶片叠加后的合成画面</strong>。有的胶片甚至不画任何东西——纯逻辑层只负责给别层喂数据。</p>
+      <p><strong>输入则是另一回事：一根笔从最上面的胶片往下按。</strong>最上面那层说要这支笔（<code class="mono">handled = true</code>），底下就碰不到。菜单栏接住了鼠标点击，3D 场景就不会同时被点到。</p>
+      <p class="quote">核心修正：<strong>Layer 不是"你看到的东西"。</strong>单张胶片不是画面，它是画面的<strong>贡献者</strong>。这就是为什么它叫 layer（层）而不是 screen（屏）——它是被合成的原料，不是成品。</p>
+    </div>
+  </section>
+
+  <!-- 两趟遍历 -->
+  <section>
+    <h2><span class="num">3</span>两趟遍历：方向相反的两个 pass</h2>
+    <p>这是 Layers 真正要内化的核心——同一个栈，每帧走两趟性质完全不同的遍历。</p>
+    <div class="loop">
+      <div class="card">
+        <div class="label">遍历 A · OnUpdate</div>
+        <h3>全员参与，每帧都跑</h3>
+        <p><code class="mono">for (Layer* l : m_Layers) l-&gt;OnUpdate(ts);</code> 底 → 顶，<strong>每一个</strong> Layer 都被 tick，没有短路，顺序通常无所谓。像乐队合奏——每个乐手每个小节都在演奏。</p>
+      </div>
+      <div class="card">
+        <div class="label">遍历 B · OnEvent</div>
+        <h3>抓到即停，顶到底</h3>
+        <p><code class="mono">for (auto it = m_Layers.rbegin(); it != m_Layers.rend(); ++it)</code> 顶 → 底走，谁把 <code class="mono">event.handled</code> 设为 true，后面的 Layer 就<strong>再也看不见</strong>这个事件。</p>
+      </div>
+    </div>
+    <div class="diagram" style="margin-top:16px;">
+      <div class="mermaid">
+flowchart LR
+    subgraph UPD["遍历 A · OnUpdate · 底 → 顶（全员，无短路）"]
+        direction LR
+        U1["Layer 1"] --> U2["Layer 2"] --> U3["Layer 3"] --> U4["Overlay 1"] --> U5["Overlay 2"]
+    end
+    subgraph EVT["遍历 B · OnEvent · 顶 → 底（handled 即停）"]
+        direction LR
+        E5["Overlay 2"] --> E4["Overlay 1"] --> E3["Layer 3"] --> E2["Layer 2"] --> E1["Layer 1"]
+    end
+
+    classDef u fill:#d8ebe4,stroke:#2f6f5e,color:#1d4a3e;
+    classDef e fill:#fdecd9,stroke:#c97b3f,color:#5a3a1f;
+
+    class U1,U2,U3,U4,U5 u;
+    class E1,E2,E3,E4,E5 e;
+      </div>
+    </div>
+    <p style="margin-top:14px;">为什么不对称？<strong>更新的语义是"每个模块给这一帧做贡献"——所以人人有份；事件的语义是"这个输入被谁接管"——所以只给最先声明的人。</strong>前者是加法，后者是排他。</p>
+    <p class="quote">实用后果：栈顶的 Overlay（比如菜单栏）永远最先看到鼠标事件。菜单栏说"这是我点的"，底下的 3D 场景就不会同时被点到。这就是浏览器里"捕获段"的位置——只是这里<strong>只有捕获段</strong>，没有冒泡段。</p>
+  </section>
+
+  <!-- Layer vs Overlay -->
+  <section>
+    <h2><span class="num">4</span>Layer vs Overlay：那条分界线</h2>
+    <p><code class="mono">LayerStack</code> 里只有一个 <code class="mono">m_LayerInsertIndex</code> 指针，把所有 Layer 和所有 Overlay 分隔开。</p>
+<pre><code>class LayerStack {
+    std::vector&lt;Layer*&gt; m_Layers;
+    unsigned int m_LayerInsertIndex = 0;
+public:
+    void PushLayer(Layer* layer) {
+        m_Layers.emplace(m_Layers.begin() + m_LayerInsertIndex, layer);
+        m_LayerInsertIndex++;      // 新 Layer 永远插在这条线上
+    }
+    void PushOverlay(Layer* overlay) {
+        m_Layers.emplace_back(overlay);   // Overlay 永远 append 到末尾
+    }
+};</code></pre>
+    <p>所以 vector 里永远是 <code class="mono">[Layer1, Layer2, ..., Overlay1, Overlay2]</code>——Overlay 永远排在 Layer 后面，也就是永远"更靠顶"、最后画、最先收事件。</p>
+    <table class="table">
+      <tr><th></th><th>Layer</th><th>Overlay</th></tr>
+      <tr><td>插入方式</td><td>插在 <code class="mono">m_LayerInsertIndex</code></td><td>append 到 vector 末尾</td></tr>
+      <tr><td>谁更高</td><td>后加的盖住先加的</td><td>永远最顶，盖住所有 Layer</td></tr>
+      <tr><td>典型用途</td><td>世界渲染、相机、游戏逻辑</td><td>菜单栏、工具条、编辑器停靠</td></tr>
+      <tr><td>事件顺序</td><td>收到没被上面接住的</td><td>永远最先收到</td></tr>
+      <tr><td>会被新 PushLayer 盖住吗</td><td>会</td><td>不会</td></tr>
+    </table>
+    <p class="quote">设计意图：Overlay 是"横切"的东西——ImGui 菜单栏和编辑器面板属于引擎本身，不该被任何游戏 Layer 盖住。Cherno 说这也是为什么 ImGui 面板要用 Overlay 而不是 Layer。</p>
+  </section>
+
+  <!-- 浏览器对照 -->
+  <section>
+    <h2><span class="num">5</span>和浏览器事件模型的对照</h2>
+    <p>你的浏览器直觉有一半是对的——它确实有 propagate、有"谁先到谁说了算"。但它比 DOM 模型<strong>简单得多</strong>：</p>
+    <table class="table">
+      <tr><th></th><th>浏览器 DOM</th><th>Hazel LayerStack</th></tr>
+      <tr><td>结构</td><td>树（祖先 - 后代）</td><td><strong>线性栈</strong>（邻居）</td></tr>
+      <tr><td>传播方向</td><td>捕获下行 + 冒泡上行</td><td><strong>一趟</strong>：顶 → 底</td></tr>
+      <tr><td>停止传播</td><td><code class="mono">stopPropagation()</code></td><td><code class="mono">event.handled = true</code></td></tr>
+      <tr><td>遍历的是什么</td><td>事件沿祖先链走</td><td>事件沿名单走</td></tr>
+      <tr><td>Update</td><td>没有对应概念</td><td>全员每帧都跑</td></tr>
+    </table>
+    <p class="quote">你之前的直觉"分捕获和冒泡两阶段"——在 LayerStack 里<strong>不成立</strong>。浏览器要两阶段是因为 DOM 是树：事件得从根走到目标、再走回来。LayerStack 是<strong>一列名单</strong>，不需要走回来，所以只有一趟。</p>
+  </section>
+
+  <!-- Layer 接口 -->
+  <section>
+    <h2><span class="num">6</span>Layer 的接口：五个钩子 + 生命周期</h2>
+    <p>这就是 Hazel 里 Layer 的全部契约。五个虚函数都是空的，留给具体 Layer 覆盖——<strong>Application 只认识这些钩子，不认识任何具体 Layer</strong>。</p>
+<pre><code>class Layer {
+public:
+    virtual ~Layer() = default;
+
+    virtual void OnAttach() {}            // 挂上：注册资源、订阅事件
+    virtual void OnDetach() {}            // 摘掉：释放资源、退订
+    virtual void OnUpdate(TimeStep ts) {} // 每帧：游戏逻辑 + 渲染
+    virtual void OnEvent(Event&amp; e) {}     // 事件：谁先 handled 谁说了算
+    virtual void OnImGuiRender() {}       // 编辑器面板（如果有 ImGui）
+};</code></pre>
+    <div class="card">
+      <ol class="steps">
+        <li><span class="n">1</span><span class="body"><code class="mono">PushLayer(layer)</code> 进栈 → <strong>LayerStack</strong> 立刻调 <code class="mono">layer-&gt;OnAttach()</code>。此时可以订阅 bus、加载它需要的资源。<strong>注意是 LayerStack 调，不是 Application 调</strong>。</span></li>
+        <li><span class="n">2</span><span class="body">之后每一帧，Application 在遍历 A 里调 <code class="mono">OnUpdate(ts)</code>，更新这个模块的状态（可能顺带渲染）。</span></li>
+        <li><span class="n">3</span><span class="body">每来一个事件，Application 在遍历 B 里把事件交给 <code class="mono">OnEvent(e)</code>。内部通常用 <code class="mono">EventDispatcher</code> 拆类型。</span></li>
+        <li><span class="n">4</span><span class="body">如果启用了 ImGui，每帧还会调 <code class="mono">OnImGuiRender()</code> 画编辑器面板。</span></li>
+        <li><span class="n">5</span><span class="body">关闭应用 → LayerStack 析构时从顶到底调 <code class="mono">OnDetach()</code>，释放资源、退订事件。</span></li>
+      </ol>
+    </div>
+    <p class="quote">把 Layer 想成<strong>插头</strong>：推入即通电（OnAttach）、每帧运转（OnUpdate）、拔掉即断电（OnDetach）。LayerStack 是那个插座排，Application 是按下总开关的人。</p>
+  </section>
+
+  <!-- 为什么 -->
+  <section>
+    <h2><span class="num">7</span>为什么这样设计：插件化组合</h2>
+    <p>因为 Cherno 想让你能<strong>组合游戏</strong>，而不是写死一个巨型 Application。Application 只认识 <code class="mono">LayerStack</code> 的接口（Push / Pop / 遍历），它<strong>不 import 任何游戏代码</strong>。</p>
+    <div class="card">
+      <h3>加功能 = 改组装，不改 Application</h3>
+      <p>想加一个物理模块？在 Sandbox 的 <code class="mono">CreateApplication</code> 里多 <code class="mono">PushLayer(new PhysicsLayer)</code>。想换相机手感？<code class="mono">PopLayer</code> 旧的再 push 新的。<strong>Application 一行不改。</strong>每个 Layer 是独立插件，只遵循"每帧 tick 我 + 把事件流给我"这个接口。</p>
+      <p>这正是你 <a href="./event-flow.html">Event Flow</a> 那页"订阅者"的完整形态：Layer 是 bus 的订阅入口，也是游戏逻辑的家。事件系统给了 Layer <strong>耳朵</strong>，LayerStack 给了 Layer <strong>位置和优先级</strong>。</p>
+    </div>
+    <p class="quote">这也是为什么 Cherno 让你在 Sandbox 里写 <code class="mono">ExampleLayer</code>：游戏代码全部长在 Layer 里。Layer 就是引擎和游戏之间的<strong>插件接缝</strong>。</p>
+  </section>
+
+  <!-- 复习要点 -->
+  <section>
+    <h2><span class="num">8</span>复习要点</h2>
+    <p>一句话记忆：<strong>Application 拥有一个有序名单，每帧做两趟方向相反的遍历——更新从底到顶人人有份，事件从顶到底抓到即停。</strong></p>
+    <div class="card">
+      <h3>复习 checklist</h3>
+      <ul class="checklist">
+        <li>Layer 是"你看到的东西"吗？→ 不是。看到的是所有 Layer 的合成结果；Layer 是行为贡献单元，常常（但不一定）产出视觉</li>
+        <li>Layer 的五个钩子？→ <code class="mono">OnAttach</code> / <code class="mono">OnDetach</code> / <code class="mono">OnUpdate</code> / <code class="mono">OnEvent</code> / <code class="mono">OnImGuiRender</code></li>
+        <li>谁调用 <code class="mono">OnAttach</code>？→ LayerStack（PushLayer 时），不是 Application</li>
+        <li>每帧对栈做几趟遍历？→ 两趟：OnUpdate 全员底→顶；OnEvent 顶→底，<code class="mono">handled</code> 即停</li>
+        <li>事件有"冒泡"吗？→ 没有。线性栈只有一趟顶→底，没有上行阶段</li>
+        <li>Layer vs Overlay？→ Overlay append 到末尾、永远最顶、最先收事件；Layer 插在 insert index，后加的盖先加的</li>
+        <li>谁停住事件传递？→ <code class="mono">event.handled = true</code>（引擎内部的 stopPropagation）</li>
+        <li>别和什么混？→ <code class="mono">preventDefault</code>（抑制浏览器默认动作）是 AppWindow 的事，跟引擎的 handled 是两码事——见 <a href="./window-event-bridge.html">Window 事件桥梁</a> 坑 5</li>
+      </ul>
+    </div>
+  </section>
+
+  <footer>
+    <p>GEAAC · 对应 Hazel 的 <code class="mono">Application + LayerStack</code>（C++ 的 layer-system）；GEAAC 落地时是 engine 的下一片——<code class="mono">Application</code> 持有 <code class="mono">LayerStack</code>，<code class="mono">run()</code> 里加两趟遍历（先于 renderer，renderer 是 Layers 的第一个真正消费者）· 姊妹篇：<a href="./event-flow.html">Event Flow</a>（bus 路由与 handled 截断）· <a href="./window-event-bridge.html">Window 事件桥梁</a>（事件从哪来）</p>
+  </footer>
+
+</main>
+
+<script>
+  mermaid.initialize({
+    startOnLoad: true,
+    theme: 'base',
+    themeVariables: {
+      fontFamily: "'Outfit', system-ui, sans-serif",
+      fontSize: '13px',
+      primaryColor: '#ffffff',
+      primaryTextColor: '#14171e',
+      primaryBorderColor: '#e9e3d6',
+      lineColor: '#9a9789',
+      secondaryColor: '#f7f5f0',
+      tertiaryColor: '#f7f5f0',
+      noteBkgColor: '#fff8e6',
+      noteTextColor: '#5a3a1f',
+      noteBorderColor: '#c97b3f',
+      clusterBkg: '#fafaf3',
+      clusterBorder: '#e9e3d6'
+    },
+    flowchart: { curve: 'basis', padding: 14 }
+  });
+</script>
+</body>
+</html>

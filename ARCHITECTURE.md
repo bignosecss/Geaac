@@ -31,7 +31,8 @@ Geaac/                          workspace root
 |-- docs/
 |   `-- architecture/           hand-authored study pages (prettier-skipped)
 |       |-- event-flow.html          EventBus 路由与 handled 截断
-|       `-- window-event-bridge.html DOM → Event 桥梁 mental model
+|       |-- window-event-bridge.html DOM → Event 桥梁 mental model
+|       `-- layers.html              LayerStack：两趟遍历 / Layer vs Overlay
 |-- package.json                root: scripts + devDeps only
 |-- pnpm-workspace.yaml         declares packages/*
 |-- tsconfig.base.json          shared TS strict settings

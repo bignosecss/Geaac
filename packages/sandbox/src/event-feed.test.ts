@@ -12,13 +12,13 @@ import {
 import { EventFeed } from '#sandbox/event-feed'
 
 describe('EventFeed', () => {
-  it('lists every listenable type with None excluded and KeyTyped at zero', () => {
+  it('lists every listenable type with None excluded', () => {
     const feed = new EventFeed(new EventBus())
     feed.attach()
     const { rows, total } = feed.getCountsSnapshot()
     expect(rows).toHaveLength(11)
     expect(rows.some((row) => row.type === EventType.None)).toBe(false)
-    // KeyTyped is defined by the engine but not yet produced by AppWindow.
+    // A fresh feed has seen no events: every row sits at zero.
     const keyTyped = rows.find((row) => row.type === EventType.KeyTyped)
     expect(keyTyped?.count).toBe(0)
     expect(keyTyped?.latestSummary).toBeNull()

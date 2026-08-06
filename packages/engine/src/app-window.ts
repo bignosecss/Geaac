@@ -1,6 +1,6 @@
 import type { Event } from '#engine/events/event'
 import { WindowResizeEvent } from '#engine/events/application-events'
-import { KeyPressedEvent, KeyReleasedEvent } from '#engine/events/key-events'
+import { KeyPressedEvent, KeyReleasedEvent, KeyTypedEvent } from '#engine/events/key-events'
 import { MouseMovedEvent, MouseScrolledEvent } from '#engine/events/mouse-events'
 import {
   MouseButtonPressedEvent,
@@ -178,6 +178,10 @@ export class AppWindow {
     // `code` is the physical key (layout-independent); DOM reports repeat as a
     // boolean flag while the event wants a count.
     this.sink?.(new KeyPressedEvent(e.code, e.repeat ? 1 : 0))
+    // A character key also produces a KeyTypedEvent — the browser analog of
+    // GLFW's separate char callback. `e.key` is post-layout, post-modifier;
+    // `length === 1` picks out printable characters (a single space included).
+    if (e.key.length === 1) this.sink?.(new KeyTypedEvent(e.key))
   }
 
   private handleKeyUp = (e: KeyboardEvent): void => {

@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { AppWindow, DEFAULT_CONSUMED_KEYS, type AppWindowConfig } from '#engine/app-window'
 import { WindowResizeEvent } from '#engine/events/application-events'
 import type { Event } from '#engine/events/event'
-import { KeyPressedEvent, KeyReleasedEvent } from '#engine/events/key-events'
+import { KeyPressedEvent, KeyReleasedEvent, KeyTypedEvent } from '#engine/events/key-events'
 import { MouseMovedEvent, MouseScrolledEvent } from '#engine/events/mouse-events'
 import {
   MouseButtonPressedEvent,
@@ -87,16 +87,20 @@ describe('AppWindow input bridge', () => {
   })
 
   describe('keyboard', () => {
-    it('translates keydown to KeyPressedEvent', () => {
+    it('translates keydown to KeyPressed and KeyTyped', () => {
       const win = createWindow()
       const sink = createSinkSpy()
       win.attach(sink.fn)
-      win.canvas.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyA' }))
-      expect(sink.events).toHaveLength(1)
-      const ev = sink.events[0] as KeyPressedEvent
-      expect(ev).toBeInstanceOf(KeyPressedEvent)
-      expect(ev.code).toBe('KeyA')
-      expect(ev.repeatCount).toBe(0)
+      // A character key produces both the physical press and the typed char.
+      win.canvas.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyA', key: 'a' }))
+      expect(sink.events).toHaveLength(2)
+      const pressed = sink.events[0] as KeyPressedEvent
+      expect(pressed).toBeInstanceOf(KeyPressedEvent)
+      expect(pressed.code).toBe('KeyA')
+      expect(pressed.repeatCount).toBe(0)
+      const typed = sink.events[1] as KeyTypedEvent
+      expect(typed).toBeInstanceOf(KeyTypedEvent)
+      expect(typed.key).toBe('a')
     })
 
     it('maps the DOM repeat flag to a repeat count', () => {
@@ -166,6 +170,37 @@ describe('AppWindow input bridge', () => {
       win.canvas.dispatchEvent(arrowUp)
       expect(space.defaultPrevented).toBe(true)
       expect(arrowUp.defaultPrevented).toBe(false)
+    })
+  })
+
+  describe('KeyTyped production', () => {
+    it('applies layout and modifiers to the typed key', () => {
+      const win = createWindow()
+      const sink = createSinkSpy()
+      win.attach(sink.fn)
+      win.canvas.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyA', key: 'A' }))
+      expect(sink.events).toHaveLength(2)
+      expect((sink.events[1] as KeyTypedEvent).key).toBe('A')
+    })
+
+    it('skips keys that produce no character', () => {
+      const win = createWindow()
+      const sink = createSinkSpy()
+      win.attach(sink.fn)
+      win.canvas.dispatchEvent(new KeyboardEvent('keydown', { code: 'ArrowUp', key: 'ArrowUp' }))
+      expect(sink.events).toHaveLength(1)
+      expect(sink.events[0]).toBeInstanceOf(KeyPressedEvent)
+    })
+
+    it('keeps a consumed Space both typed and prevented', () => {
+      const win = createWindow()
+      const sink = createSinkSpy()
+      win.attach(sink.fn)
+      const domEvent = new KeyboardEvent('keydown', { code: 'Space', key: ' ', cancelable: true })
+      win.canvas.dispatchEvent(domEvent)
+      expect(domEvent.defaultPrevented).toBe(true)
+      expect(sink.events).toHaveLength(2)
+      expect((sink.events[1] as KeyTypedEvent).key).toBe(' ')
     })
   })
 

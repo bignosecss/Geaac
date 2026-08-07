@@ -1,16 +1,45 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Mock } from 'vitest'
 
-import { Application, EventType, createApplication } from '@geaac/engine'
-import type { AppWindow } from '@geaac/engine'
+import { Application, Layer, WindowCloseEvent, createApplication } from '@geaac/engine'
+import type { AppWindow, Event, TimeStep } from '@geaac/engine'
+
+/**
+ * Build a layer that appends `hook:name` lines to a shared log. The shared
+ * log keeps cross-layer ordering assertions readable as a transcript.
+ */
+function recordLayer(name: string, log: string[], claims = false): Layer {
+  return new (class extends Layer {
+    constructor() {
+      super(name)
+    }
+    override onAttach(): void {
+      log.push(`attach:${name}`)
+    }
+    override onDetach(): void {
+      log.push(`detach:${name}`)
+    }
+    override onUpdate(): void {
+      log.push(`update:${name}`)
+    }
+    override onEvent(event: Event): void {
+      log.push(`event:${event.name}:${name}`)
+      if (claims) event.handled = true
+    }
+  })()
+}
 
 describe('Application', () => {
   let windowStub: AppWindow
   let attachMock: Mock
   let detachMock: Mock
+  let sink: ((event: Event) => void) | undefined
+  let tick: ((time: number) => void) | undefined
 
   beforeEach(() => {
-    attachMock = vi.fn()
+    attachMock = vi.fn((callback: (event: Event) => void) => {
+      sink = callback
+    })
     detachMock = vi.fn()
     windowStub = {
       width: 800,
@@ -20,7 +49,10 @@ describe('Application', () => {
     } as unknown as AppWindow
     vi.spyOn(console, 'info').mockImplementation(() => {})
     vi.spyOn(console, 'warn').mockImplementation(() => {})
-    vi.stubGlobal('requestAnimationFrame', () => 1)
+    vi.stubGlobal('requestAnimationFrame', (callback: (time: number) => void) => {
+      tick = callback
+      return 1
+    })
     vi.stubGlobal('cancelAnimationFrame', () => {})
   })
 
@@ -46,10 +78,54 @@ describe('Application', () => {
     expect(console.info).toHaveBeenCalledWith('[Engine]', 'Created application: Console Check')
   })
 
-  it('constructor wires the window bridge into the event bus', () => {
+  it('constructor wires the window bridge into the layer stack', () => {
     new Application({ name: 'Bridged', window: windowStub })
     expect(attachMock).toHaveBeenCalledTimes(1)
     expect(attachMock).toHaveBeenCalledWith(expect.any(Function))
+  })
+
+  it('pushLayer inserts a layer and calls onAttach', () => {
+    const app = new Application({ name: 'Pusher', window: windowStub })
+    const log: string[] = []
+    app.pushLayer(recordLayer('A', log))
+    expect(log).toEqual(['attach:A'])
+  })
+
+  it('pushOverlay pins a layer above every layer', () => {
+    const app = new Application({ name: 'Pinner', window: windowStub })
+    const log: string[] = []
+    app.pushLayer(recordLayer('A', log))
+    app.pushOverlay(recordLayer('O', log))
+    expect(log).toEqual(['attach:A', 'attach:O'])
+
+    sink!(new WindowCloseEvent())
+    // top → bottom: overlay first, then the layer
+    expect(log).toEqual(['attach:A', 'attach:O', 'event:WindowClose:O', 'event:WindowClose:A'])
+  })
+
+  it('stops event dispatch at the first claiming layer', () => {
+    const app = new Application({ name: 'Claimer', window: windowStub })
+    const log: string[] = []
+    app.pushLayer(recordLayer('A', log))
+    app.pushLayer(recordLayer('B', log, true)) // B is the higher layer and claims
+
+    sink!(new WindowCloseEvent())
+
+    expect(log).toEqual(['attach:A', 'attach:B', 'event:WindowClose:B'])
+  })
+
+  it('popLayer calls onDetach and removes the layer from dispatch', () => {
+    const app = new Application({ name: 'Popper', window: windowStub })
+    const log: string[] = []
+    const a = recordLayer('A', log)
+    app.pushLayer(a)
+    app.pushLayer(recordLayer('B', log))
+
+    app.popLayer(a)
+
+    expect(log).toEqual(['attach:A', 'attach:B', 'detach:A'])
+    sink!(new WindowCloseEvent())
+    expect(log).toEqual(['attach:A', 'attach:B', 'detach:A', 'event:WindowClose:B'])
   })
 
   it('run() logs that the main loop started', () => {
@@ -65,39 +141,76 @@ describe('Application', () => {
     expect(console.warn).toHaveBeenCalledWith('[Engine]', 'Application is already running')
   })
 
-  it('close() logs that the application closed', () => {
-    const app = new Application({ name: 'Closer', window: windowStub })
+  it('tick() updates layers bottom-to-top with a frame delta', () => {
+    const app = new Application({ name: 'Ticker', window: windowStub })
+    const log: string[] = []
+    app.pushLayer(recordLayer('A', log))
+    app.pushLayer(recordLayer('B', log))
     app.run()
+
+    tick!(0)
+    tick!(16)
+    tick!(32)
+
+    // three frames, each updating A then B (bottom → top)
+    expect(log).toEqual([
+      'attach:A',
+      'attach:B',
+      'update:A',
+      'update:B',
+      'update:A',
+      'update:B',
+      'update:A',
+      'update:B',
+    ])
+  })
+
+  it('tick() passes the seconds between frames to onUpdate', () => {
+    const app = new Application({ name: 'Delta', window: windowStub })
+    const deltas: number[] = []
+    app.pushLayer(
+      new (class extends Layer {
+        constructor() {
+          super('TsSpy')
+        }
+        override onUpdate(ts: TimeStep): void {
+          deltas.push(ts)
+        }
+      })(),
+    )
+    app.run()
+
+    tick!(1000)
+    tick!(1016)
+    tick!(1066)
+
+    expect(deltas).toEqual([0, 0.016, 0.05])
+  })
+
+  it('close() routes WindowClose to layers before tearing them down', () => {
+    const app = new Application({ name: 'Closer', window: windowStub })
+    const log: string[] = []
+    app.pushLayer(recordLayer('A', log))
+    app.pushOverlay(recordLayer('O', log))
+    app.run()
+
     app.close()
+
+    // WindowClose top → bottom, then shutdown detaches in stack order
+    expect(log).toEqual([
+      'attach:A',
+      'attach:O',
+      'event:WindowClose:O',
+      'event:WindowClose:A',
+      'detach:A',
+      'detach:O',
+    ])
+    expect(detachMock).toHaveBeenCalledTimes(1)
     expect(console.info).toHaveBeenCalledWith('[Engine]', 'Application closed')
   })
 
   it('close() does not throw when called without run()', () => {
     const app = new Application({ name: 'Safe', window: windowStub })
     expect(() => app.close()).not.toThrow()
-  })
-
-  it('close() publishes WindowCloseEvent before detaching the window', () => {
-    const app = new Application({ name: 'CloseBridge', window: windowStub })
-    const received: string[] = []
-    app.events.on(EventType.WindowClose, (e) => received.push(e.name))
-    app.close()
-    expect(received).toEqual(['WindowClose'])
-    expect(detachMock).toHaveBeenCalledTimes(1)
-  })
-
-  it('tick() publishes AppTickEvent then AppRenderEvent', () => {
-    let captured: ((time: number) => void) | undefined
-    vi.stubGlobal('requestAnimationFrame', (cb: (time: number) => void) => {
-      captured = cb
-      return 1
-    })
-    const app = new Application({ name: 'Ticker', window: windowStub })
-    const received: string[] = []
-    app.events.on(EventType.AppTick, () => received.push('AppTick'))
-    app.events.on(EventType.AppRender, () => received.push('AppRender'))
-    app.run()
-    captured!(0)
-    expect(received).toEqual(['AppTick', 'AppRender'])
   })
 })

@@ -2,20 +2,20 @@ import { isInCategory, type EventCategoryValue } from '#engine/events/category'
 import { eventTypeName, type EventTypeValue } from '#engine/events/event-type'
 
 /**
- * Base class for every event the engine can publish. Concrete events assign
+ * Base class for every event the engine can dispatch. Concrete events assign
  * themselves an {@link EventTypeValue} and a bitmask of
- * {@link EventCategoryValue}s, then get routed by {@link EventBus} and
+ * {@link EventCategoryValue}s, then get routed by {@link LayerStack} and
  * pattern-matched by {@link EventDispatcher}.
  */
 export abstract class Event {
   /**
-   * Set by a handler (directly or via {@link EventDispatcher.dispatch}) to
-   * signal the event has been consumed. The bus uses this to short-circuit
-   * further dispatch for this event.
+   * Set by a layer (directly or via {@link EventDispatcher.dispatch}) to
+   * signal the event has been consumed. The layer stack uses this to
+   * short-circuit further dispatch for this event.
    */
   public handled = false
 
-  /** Unique event-type identifier; used as the lookup key in the event bus. */
+  /** Unique event-type identifier; used as the lookup key in the event registry. */
   public abstract readonly eventType: EventTypeValue
 
   /**

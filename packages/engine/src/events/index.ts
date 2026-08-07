@@ -1,7 +1,6 @@
 export { EventCategory, isInCategory, type EventCategoryValue } from '#engine/events/category'
 export { Event } from '#engine/events/event'
 export { EventDispatcher } from '#engine/events/dispatcher'
-export { EventBus, type EventHandler } from '#engine/events/bus'
 export { EventType, eventTypeName, type EventTypeValue } from '#engine/events/event-type'
 export {
   AppRenderEvent,

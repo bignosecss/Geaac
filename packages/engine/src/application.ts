@@ -1,6 +1,7 @@
 import type { AppWindow } from '#engine/app-window'
-import { AppRenderEvent, AppTickEvent, WindowCloseEvent } from '#engine/events/application-events'
-import { EventBus } from '#engine/events/bus'
+import { WindowCloseEvent } from '#engine/events/application-events'
+import type { Layer } from '#engine/layers/layer'
+import { LayerStack } from '#engine/layers/layer-stack'
 import { coreLogger } from '#engine/log/index'
 
 /**
@@ -18,28 +19,74 @@ export type ApplicationConfig = {
 }
 
 /**
- * Top-level engine host. Owns the event bus, the main loop, and the lifecycle
- * from `run` to `close`. Created via {@link createApplication} or directly
- * with a config.
+ * Top-level engine host. Owns the {@link LayerStack} and the main loop.
+ *
+ * Events are single-channel: the window's DOM listeners are routed straight
+ * into {@link LayerStack.onEvent} (top-to-bottom, first claimer wins). Each
+ * frame the main loop drives {@link LayerStack.onUpdate} with the frame's
+ * delta time. Created via {@link createApplication} or directly with a
+ * config.
  */
 export class Application {
   /** Human-readable name passed at construction. */
   readonly name: string
   /** The engine window this application renders into. */
   readonly window: AppWindow
-  /**
-   * The engine event hub. The window's DOM listeners publish into this bus via
-   * {@link AppWindow.attach}; subscribers read from it with {@link EventBus.on}.
-   */
-  readonly events = new EventBus()
+  private readonly layerStack = new LayerStack()
   private running = false
   private rAFId: number | null = null
+  private lastFrameTime = 0
 
   constructor(config: ApplicationConfig) {
     this.name = config.name
     this.window = config.window
-    this.window.attach((event) => this.events.publish(event))
+    this.window.attach((event) => this.layerStack.onEvent(event))
     coreLogger.info(`Created application: ${this.name}`)
+  }
+
+  /**
+   * Add a layer below all overlays. The application calls {@link Layer.onAttach}
+   * after insertion — not the {@link LayerStack}, which stays a pure data
+   * structure.
+   *
+   * @param layer  The layer to insert.
+   */
+  pushLayer(layer: Layer): void {
+    this.layerStack.pushLayer(layer)
+    layer.onAttach()
+  }
+
+  /**
+   * Pin a layer to the very top, above every layer and overlay. The
+   * application calls {@link Layer.onAttach} after insertion. Overlays are for
+   * cross-cutting UI (menus, debug panels).
+   *
+   * @param layer  The overlay to pin.
+   */
+  pushOverlay(layer: Layer): void {
+    this.layerStack.pushOverlay(layer)
+    layer.onAttach()
+  }
+
+  /**
+   * Remove a layer from the layer region. The {@link LayerStack} calls
+   * {@link Layer.onDetach} — asymmetric with {@link pushLayer}, where the
+   * application calls {@link Layer.onAttach}. No-op if the layer is absent.
+   *
+   * @param layer  The layer to remove.
+   */
+  popLayer(layer: Layer): void {
+    this.layerStack.popLayer(layer)
+  }
+
+  /**
+   * Remove an overlay from the top region. The {@link LayerStack} calls
+   * {@link Layer.onDetach}. No-op if the overlay is absent.
+   *
+   * @param layer  The overlay to remove.
+   */
+  popOverlay(layer: Layer): void {
+    this.layerStack.popOverlay(layer)
   }
 
   /**
@@ -52,19 +99,23 @@ export class Application {
       return
     }
     this.running = true
+    this.lastFrameTime = 0
     coreLogger.info('Main loop started')
-    this.rAFId = requestAnimationFrame(() => this.tick())
+    this.rAFId = requestAnimationFrame((time) => this.tick(time))
   }
 
   /**
-   * Stop the main loop, detach the window bridge, and release the pending
-   * animation frame. Safe to call when the application is not running. After
-   * `close`, `run` may be called again to restart the loop.
+   * Stop the main loop, tear down the layers, and detach the window bridge.
+   *
+   * Layers get a {@link WindowCloseEvent} first (top-to-bottom, so they can
+   * save state), then each layer's {@link Layer.onDetach}. Safe to call when
+   * the application is not running. After `close`, `run` may be called again
+   * to restart the loop, but previously pushed layers are gone and must be
+   * re-pushed.
    */
   close(): void {
-    // Publish before detaching so subscribers can react (e.g. save state)
-    // while the window bridge is still live.
-    this.events.publish(new WindowCloseEvent())
+    this.layerStack.onEvent(new WindowCloseEvent())
+    this.layerStack.shutdown()
     this.window.detach()
     if (this.rAFId !== null) {
       cancelAnimationFrame(this.rAFId)
@@ -74,10 +125,11 @@ export class Application {
     coreLogger.info('Application closed')
   }
 
-  private tick(): void {
-    this.events.publish(new AppTickEvent())
-    this.events.publish(new AppRenderEvent())
-    this.rAFId = requestAnimationFrame(() => this.tick())
+  private tick(time: number): void {
+    const ts = this.lastFrameTime === 0 ? 0 : (time - this.lastFrameTime) / 1000
+    this.lastFrameTime = time
+    this.layerStack.onUpdate(ts)
+    this.rAFId = requestAnimationFrame((time) => this.tick(time))
   }
 }
 

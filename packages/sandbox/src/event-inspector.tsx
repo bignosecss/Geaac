@@ -1,66 +1,47 @@
-import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
+import { useSyncExternalStore } from 'react'
 
-import type { Application } from '@geaac/engine'
-
-import { EventFeed } from '#sandbox/event-feed'
+import type { EventInspectorLayer } from '#sandbox/event-inspector-layer'
 
 /**
- * Live inspector over the application's event bus.
+ * Live inspector over the engine's event stream.
  *
- * Owns a single {@link EventFeed} whose lifecycle tracks the application's:
- * it attaches when the app's bus is available and detaches when the app (or
- * the inspector itself) unmounts. Two panels read from the feed through
- * `useSyncExternalStore`, so they re-render only when their snapshot actually
- * changes — the counts panel picks up the ~60fps AppTick/AppRender every
- * frame, while the stream panel only re-renders on discrete events.
- *
- * StrictMode-safe: the `feedRef` guard plus effect cleanup mean the double
- * mount cycle attaches a fresh feed and detaches the previous one.
+ * Reads its store from the {@link EventInspectorLayer} the host pushed as an
+ * overlay — the topmost layer sees every event first without claiming it. Two
+ * panels read from the layer through `useSyncExternalStore`, so they re-render
+ * only when their snapshot actually changes: the counts panel refreshes every
+ * frame (the layer's `onUpdate` advances the frame counter), while the stream
+ * panel only re-renders on discrete events.
  */
-export function EventInspector({ application }: { application: Application | null }) {
-  const [feed, setFeed] = useState<EventFeed | null>(null)
-  const feedRef = useRef<EventFeed | null>(null)
-
-  useEffect(() => {
-    if (!application || feedRef.current) return
-    const next = new EventFeed(application.events)
-    next.attach()
-    feedRef.current = next
-    setFeed(next)
-    return () => {
-      next.detach()
-      feedRef.current = null
-    }
-  }, [application])
-
-  if (!application || !feed) {
-    return <p className="mt-2 text-sm text-slate-500">Waiting for the application event bus…</p>
+export function EventInspector({ layer }: { layer: EventInspectorLayer | null }) {
+  if (!layer) {
+    return <p className="mt-2 text-sm text-slate-500">Waiting for the inspector layer…</p>
   }
 
   return (
     <section className="mt-2 grid gap-2 lg:grid-cols-2">
-      {/* Key each panel by the feed so remounting resets local state. */}
-      <EventTypePanel key={feed.startedAt} feed={feed} />
-      <EventStreamPanel key={feed.startedAt} feed={feed} />
+      <EventTypePanel layer={layer} />
+      <EventStreamPanel layer={layer} />
     </section>
   )
 }
 
 /** One row per listenable {@link EventType}: name, running count, latest payload. */
-function EventTypePanel({ feed }: { feed: EventFeed }) {
-  const counts = useSyncExternalStore(feed.subscribe, feed.getCountsSnapshot)
+function EventTypePanel({ layer }: { layer: EventInspectorLayer }) {
+  const counts = useSyncExternalStore(layer.subscribe, layer.getCountsSnapshot)
   return (
     <div className="rounded-md border border-slate-200 bg-white px-4 py-3">
       <div className="flex items-baseline justify-between gap-2">
         <h2 className="text-sm font-semibold text-slate-900">Event types</h2>
-        <span className="shrink-0 text-xs text-slate-500">{counts.total} events</span>
+        <span className="shrink-0 text-xs text-slate-500">
+          {counts.total} events · {counts.frames} frames
+        </span>
       </div>
       <ul className="mt-2 space-y-0.5 font-mono text-xs">
         {counts.rows.map((row) => (
           <li
             key={row.type}
             className={`flex gap-2 ${row.count === 0 ? 'opacity-40' : ''}`}
-            title={row.latestSummary ?? 'no events since attach'}
+            title={row.latestSummary ?? 'no events yet'}
           >
             <span className="shrink-0 text-slate-700">{row.name}</span>
             <span className="w-10 shrink-0 text-right text-slate-400">{row.count}</span>
@@ -73,25 +54,12 @@ function EventTypePanel({ feed }: { feed: EventFeed }) {
 }
 
 /** Rolling chronological stream of feed entries, newest first. */
-function EventStreamPanel({ feed }: { feed: EventFeed }) {
-  const [includePerFrame, setIncludePerFrame] = useState(feed.includePerFrameEvents)
-  const stream = useSyncExternalStore(feed.subscribe, feed.getStreamSnapshot)
-
+function EventStreamPanel({ layer }: { layer: EventInspectorLayer }) {
+  const stream = useSyncExternalStore(layer.subscribe, layer.getStreamSnapshot)
   return (
     <div className="rounded-md border border-slate-200 bg-white px-4 py-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 className="text-sm font-semibold text-slate-900">Stream</h2>
-        <label className="flex items-center gap-1.5 text-xs text-slate-500">
-          <input
-            type="checkbox"
-            checked={includePerFrame}
-            onChange={(e) => {
-              feed.setIncludePerFrameEvents(e.target.checked)
-              setIncludePerFrame(e.target.checked)
-            }}
-          />
-          Include per-frame events
-        </label>
       </div>
       {stream.entries.length === 0 ? (
         <p className="mt-2 text-xs text-slate-400">
@@ -105,7 +73,7 @@ function EventStreamPanel({ feed }: { feed: EventFeed }) {
               <span className="shrink-0 text-slate-700">{entry.name}</span>
               <span className="min-w-0 truncate text-slate-500">{entry.summary}</span>
               <span className="shrink-0 text-slate-400">
-                [{entry.categoryLabels.join(', ')}] +{(entry.at - feed.startedAt).toFixed(0)}ms
+                [{entry.categoryLabels.join(', ')}] +{(entry.at - layer.startedAt).toFixed(0)}ms
               </span>
             </li>
           ))}

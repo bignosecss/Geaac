@@ -3,6 +3,7 @@ export { AppWindow, createAppWindow, DEFAULT_CONSUMED_KEYS } from '#engine/app-w
 export { ENGINE_VERSION } from '#engine/version'
 export * from '#engine/log/index'
 export * from '#engine/events/index'
+export * from '#engine/layers/index'
 
 export type { ApplicationConfig } from '#engine/application'
 export type { AppWindowConfig } from '#engine/app-window'

@@ -48,7 +48,7 @@ export type AppWindowConfig = {
  *
  * The window translates native DOM events into engine events and hands them to
  * this sink; it never knows who consumes them. Analogous to Hazel's
- * `EventCallback` — {@link Application} wires its {@link EventBus} publish
+ * `EventCallback` — {@link Application} wires its {@link LayerStack} dispatch
  * into this sink via {@link AppWindow.attach}.
  */
 export type EventSink = (event: Event) => void

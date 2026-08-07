@@ -30,7 +30,7 @@ Geaac/                          workspace root
 |-- ARCHITECTURE.md             this file
 |-- docs/
 |   `-- architecture/           hand-authored study pages (prettier-skipped)
-|       |-- event-flow.html          EventBus 路由与 handled 截断
+|       |-- event-flow.html          事件单通道流与 handled 截断
 |       |-- window-event-bridge.html DOM → Event 桥梁 mental model
 |       `-- layers.html              LayerStack：两趟遍历 / Layer vs Overlay
 |-- package.json                root: scripts + devDeps only
@@ -44,7 +44,7 @@ Geaac/                          workspace root
     |   |-- tsconfig.json       composite, references: []
     |   `-- src/
     |       |-- index.ts        barrel, public API
-    |       `-- ...             modules: log, event-bus, ...
+    |       `-- ...             modules: log, events, layers, ...
     |
     `-- sandbox/                Vite + React app, depends on engine
         |-- package.json        name: @geaac/sandbox
@@ -75,13 +75,14 @@ consumer owns its DOM layout and supplies the canvas on which the engine will
 render. Explicit inputs keep API-neutral engine code testable in Node and the
 engine reusable across browser consumers.
 
-Status: event pipeline complete — blocking EventBus, AppWindow DOM→Event
-bridge (attach/detach), Application-owned bus, keyboard scoped to the canvas,
-keyCode→code/key migration, input consumption (`preventDefault` on game keys
-and the wheel), KeyPressed/KeyTyped production (char keys emit a KeyTypedEvent
-from the same keydown), React `useEvent` hook (single-type subscription), and a
-data-driven sandbox event inspector.
-Next: the renderer slice — the first real consumer of the input pipeline
+Status: input pipeline complete and Layers landed — single-channel event
+dispatch through LayerStack (retired the EventBus), AppWindow DOM→Event
+bridge (attach/detach), keyboard scoped to the canvas, input consumption
+(`preventDefault` on game keys and the wheel), KeyPressed/KeyTyped
+production, Hazel-style Layer/LayerStack with two-pass traversal
+(onUpdate bottom→top, onEvent top→bottom with handled truncation), and a
+sandbox debug-overlay event inspector (an observer layer that never claims).
+Next: the renderer slice — the first real consumer of the Layers pipeline
 (deferred in Open questions).
 
 ### `@geaac/sandbox`
@@ -95,9 +96,10 @@ real browser, and is the natural host for ad-hoc experiments while
 developing engine modules.
 
 Status: scaffolded (Vite + React 19, configures an engine application) with a
-live event inspector (`EventFeed` + `EventInspector`) that surfaces every
-listenable event type — count and latest payload per type, plus a rolling
-stream, with per-frame AppTick/AppRender counted but stream-opt-in.
+live event inspector — an `EventInspectorLayer` overlay that observes every
+event without claiming, surfacing count + latest payload per type plus a
+rolling stream and a per-frame counter — and an `ExampleLayer` demo below it
+showing the two-pass traversal and handled truncation.
 
 ### `@geaac/editor` (planned)
 
@@ -188,14 +190,16 @@ packages/engine/src/
   application.ts       Application class with run/close lifecycle
   version.ts           build-time version constant
   log/                 level-filtered logging: Logger, ConsoleLogger, coreLogger
-  events/              blocking EventBus + bit-flag categories + EventType enum
+  events/              event types + EventDispatcher (no bus — single channel)
     category.ts          bit-flag EventCategory enum + isInCategory helper
     event-type.ts        sequential EventType enum + typed name registry
     event.ts             abstract Event base class
     dispatcher.ts        EventDispatcher<E> for instanceof-based dispatch
-    bus.ts               EventBus: on(EventType.X, h) and onCategory(bits, h)
     application-events.ts, key-events.ts, mouse-events.ts,
     mouse-button-events.ts   concrete events, grouped by source
+  layers/              Hazel Layer/LayerStack (see 2026-08-07 decision)
+    layer.ts             Layer base with onAttach/onDetach/onUpdate/onEvent
+    layer-stack.ts       ordered stack + insert-index partition, two passes
   platform/            (later) abstractions over host environment
   core/                (later) entity, component, system base types
 ```
@@ -355,6 +359,29 @@ string>` for the typed reverse lookup.
   of scope (keydown reports `Process`/`isComposing`, and the composed text
   surfaces through the DOM's composition events, not keydown). Repeated
   keydowns still emit KeyTypedEvent; it carries no repeat field.
+
+### 2026-08-07 - Layers: LayerStack replaces the EventBus as the single dispatch channel
+
+- **Decision**: port Hazel's `Layer` / `LayerStack` into TypeScript as the
+  engine's only event-dispatch channel, and retire the `EventBus`. Events now
+  flow `DOM → AppWindow → Application.sink → LayerStack.onEvent`
+  (top-to-bottom, `handled` truncation). The per-frame signal moves from the
+  retired AppTick/AppRender publishes to `LayerStack.onUpdate(ts)` with a
+  rAF-derived delta time. Lives at `packages/engine/src/layers/`.
+- **Why single channel**: the EventBus was invented before layers existed to
+  give the sandbox UI a way to subscribe; Hazel has no bus — its event system
+  IS `LayerStack::OnEvent`, and debug UI is an observer overlay. Keeping the
+  bus meant two mechanisms doing the same handled-truncation, with an ordering
+  seam between observers and consumers.
+- **Why the layer lifecycle is asymmetric** (verified against Hazel master):
+  `OnAttach` is called by `Application::PushLayer/PushOverlay`; `OnDetach` by
+  `LayerStack` on pop / shutdown. The stack is a pure data structure.
+- **Why 4 hooks, not 5**: `onImGuiRender` is deferred until the ImGui-style
+  editor slice; the sandbox inspector renders via React, reading snapshots
+  from an observer overlay layer instead.
+- **Why AppTick/AppRender stay dormant**: they remain in the `EventType`
+  registry (Hazel's HazelCoreEvents.h has them) but are never published;
+  per-frame work lives in `onUpdate(ts)`.
 
 ## Open questions
 

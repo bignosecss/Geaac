@@ -95,7 +95,7 @@
   }
   .card + .card { margin-top: 14px; }
 
-  /* ----- Tiles (4 layers) ----- */
+  /* ----- Tiles ----- */
   .tiles {
     display: grid; grid-template-columns: repeat(4, 1fr);
     gap: 14px; margin-top: 18px;
@@ -191,7 +191,7 @@
 
   <span class="eyebrow">GEAAC · Engine Architecture</span>
   <h1>Event Flow</h1>
-  <p class="lede">从画布上的一个按键，到被三层订阅者拆开处理，中间到底发生了什么。这页把整个数据流拆成 4 层：Publisher、EventBus、Subscriber、Dispatcher。</p>
+  <p class="lede">从画布上的一个按键，到被最顶上的 overlay 最先看到、被某个 Layer 认领，中间发生了什么。这页把事件流拆成 4 个环节：<strong>AppWindow → Application → LayerStack → Dispatcher</strong>。注意这是<strong>单通道</strong>——Hazel 没有 bus，事件系统就是 LayerStack。</p>
 
   <!-- 主架构图 -->
   <section>
@@ -199,103 +199,90 @@
     <div class="diagram">
       <div class="mermaid">
 flowchart TB
-    RAW["raw events: key, mouse, tick<br/>OS or Browser"]
+    RAW["DOM 事件: keydown / wheel / mousemove / resize<br/>Browser"]
 
-    subgraph PUB["01 Publisher: any event source"]
-        WIN["Window input<br/>code, x, y, w, h"]
-        TICK["AppTick timer"]
-        ASSET["Asset loader done"]
+    subgraph APP["01 AppWindow · 翻译 + 消费策略"]
+        W1["keydown → KeyPressed + KeyTyped"]
+        W2["wheel → MouseScrolled"]
+        W3["ResizeObserver → WindowResize"]
     end
 
-    RAW --> WIN
+    RAW --> W1
+    RAW --> W2
+    RAW --> W3
 
-    subgraph BUS["02 EventBus: dispatcher"]
-        BYT["byType Map: exact match"]
-        BYC["byCategory Set: fuzzy match"]
+    SINK["02 Application.sink"]
+
+    W1 -->|"publish"| SINK
+    W2 -->|"publish"| SINK
+    W3 -->|"publish"| SINK
+
+    subgraph STK["03 LayerStack.onEvent · 遍历 B 顶→底 · handled 即停"]
+        O["Overlay · EventInspector<br/>只看不认领"]
+        L1["Layer · 相机控制"]
+        L2["Layer · 世界渲染"]
     end
 
-    WIN -->|"publish"| BYT
-    WIN -->|"publish"| BYC
-    TICK -->|"publish"| BYT
-    ASSET -->|"publish"| BYT
+    SINK --> O
+    O -->|"handled=false 才继续"| L1
+    L1 -->|"handled=false 才继续"| L2
 
-    subgraph LYR["03 Subscribers: fan-out"]
-        L1["InputLayer"]
-        L2["UILayer"]
-        L3["DebugLayer"]
-    end
-
-    BYT -->|"type hit"| L1
-    BYT -->|"type hit"| L2
-    BYT -->|"type hit"| L3
-    BYC -->|"category hit"| L1
-    BYC -->|"category hit"| L2
-    BYC -->|"category hit"| L3
-
-    subgraph DISP["04 EventDispatcher: type unpacker per layer"]
-        D1["dispatch KeyPressedEvent then fn1"]
-        D2["dispatch WindowResizeEvent then fn2"]
+    subgraph DISP["04 EventDispatcher · layer 内部拆类型"]
+        D1["dispatch(KeyPressedEvent, fn)"]
     end
 
     L1 --> D1
-    L2 --> D2
+    D1 -->|"instanceof 命中"| H1["fn 业务逻辑"]
+    H1 -.->|"fn 返回 true → handled=true → 截断"| STK
 
-    H1["fn1: log key, return true"]
-    H2["fn2: relayout, return false"]
-    D1 -->|"instanceof match"| H1
-    D2 -->|"instanceof match"| H2
-
-    H1 -.->|"handled = true: bus short-circuits"| BYT
-    H2 -.->|"continue: propagates"| L3
-
-    classDef pub fill:#fdecd9,stroke:#c97b3f,color:#5a3a1f;
-    classDef bus fill:#d8ebe4,stroke:#2f6f5e,color:#1d4a3e;
-    classDef lyr fill:#ffffff,stroke:#e9e3d6,color:#14171e;
+    classDef app fill:#d8ebe4,stroke:#2f6f5e,color:#1d4a3e;
+    classDef stk fill:#fdecd9,stroke:#c97b3f,color:#5a3a1f;
+    classDef ovr fill:#fff8e6,stroke:#c4b896,color:#4a3a2a;
     classDef disp fill:#f4dada,stroke:#b06367,color:#6b3236;
     classDef raw fill:#ede7d4,stroke:#c4b896,color:#4a3a2a;
 
-    class WIN,TICK,ASSET pub;
-    class BYT,BYC bus;
-    class L1,L2,L3 lyr;
-    class D1,D2,H1,H2 disp;
+    class W1,W2,W3,SINK app;
+    class O ovr;
+    class L1,L2 stk;
+    class D1,H1 disp;
     class RAW raw;
       </div>
     </div>
     <div class="legend">
-      <div class="item"><span class="swatch" style="background:#c97b3f33;border:1px solid #c97b3f"></span>Publisher · 产生事件</div>
-      <div class="item"><span class="swatch" style="background:#2f6f5e22;border:1px solid #2f6f5e"></span>EventBus · 路由</div>
-      <div class="item"><span class="swatch" style="background:#fff;border:1px solid #e9e3d6"></span>Layer · 订阅者</div>
+      <div class="item"><span class="swatch" style="background:#d8ebe4;border:1px solid #2f6f5e"></span>AppWindow / Application · 翻译与接线</div>
+      <div class="item"><span class="swatch" style="background:#fdecd9;border:1px solid #c97b3f"></span>Layer · 消费单元（底→顶更新、顶→底收事件）</div>
+      <div class="item"><span class="swatch" style="background:#fff8e6;border:1px solid #c4b896"></span>Overlay · 观察者（最顶，先看到）</div>
       <div class="item"><span class="swatch" style="background:#b0636715;border:1px solid #b06367"></span>Dispatcher · 类型拆包</div>
     </div>
   </section>
 
-  <!-- 4 层职责 -->
+  <!-- 4 个环节职责 -->
   <section>
-    <h2><span class="num">2</span>4 层各自干什么</h2>
+    <h2><span class="num">2</span>4 个环节各自干什么</h2>
     <div class="tiles">
       <div class="tile">
         <div class="icon">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
         </div>
-        <div class="badge">Publisher</div>
-        <h3>制造事件</h3>
-        <p>把外部信号包成 <code class="mono">Event</code> 子类塞给 bus。不只是 window，timer / asset / network 都能发。</p>
+        <div class="badge">AppWindow</div>
+        <h3>翻译 + 消费策略</h3>
+        <p>把 DOM 事件包成 engine <code class="mono">Event</code>；顺带 <code class="mono">preventDefault</code>（消费浏览器默认滚动/缩放）。这是 DOM 的唯一接触层。</p>
       </div>
       <div class="tile">
         <div class="icon">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M2 12h20"/></svg>
         </div>
-        <div class="badge">EventBus</div>
-        <h3>路由派送</h3>
-        <p>维护 <code class="mono">byType</code> + <code class="mono">byCategory</code> 两份订阅表，fan-out 给所有命中者；<code class="mono">handled</code> 时短路。</p>
+        <div class="badge">Application</div>
+        <h3>接线</h3>
+        <p>构造时 <code class="mono">window.attach((e) =&gt; layerStack.onEvent(e))</code>。唯一知道"事件往哪走"的人。</p>
       </div>
       <div class="tile">
         <div class="icon">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
         </div>
-        <div class="badge">Layer</div>
-        <h3>订阅入口</h3>
-        <p>每个 layer 暴露 <code class="mono">onEvent(event: Event)</code>。收到通用 Event，内部用 dispatcher 拆。</p>
+        <div class="badge">LayerStack</div>
+        <h3>单通道派送</h3>
+        <p>遍历 B：事件顶→底、<code class="mono">handled</code> 即停；遍历 A：每帧 <code class="mono">onUpdate(ts)</code> 底→顶全员。</p>
       </div>
       <div class="tile">
         <div class="icon">
@@ -311,69 +298,69 @@ flowchart TB
   <!-- handled 截断 -->
   <section>
     <h2><span class="num">3</span>handled 怎么截断的</h2>
-    <p>bus 在 <code class="mono">publish</code> 的时候按顺序触发匹配到的 handler，<strong>任何一个把 <code class="mono">event.handled</code> 设为 true，bus 就立刻 return</strong>，不再继续推给剩下的订阅者。</p>
+    <p>遍历 B 从栈顶开始逐层给 <code class="mono">onEvent(e)</code>，<strong>任何一个 layer 把 <code class="mono">event.handled</code> 设为 true，LayerStack 立刻停止</strong>，更底的 layer 这次看不到这个事件。</p>
     <div class="card">
       <ol class="steps">
         <li>
           <span class="n">1</span>
-          <span class="body"><code class="mono">bus.publish(keyPressedEvent)</code> · 找到 <code class="mono">byType.get(KeyPressed)</code> 里的三个 handler 集合。</span>
+          <span class="body"><code class="mono">Application.sink</code> 收到 window 推来的 event，交给 <code class="mono">layerStack.onEvent(event)</code>。</span>
         </li>
         <li>
           <span class="n">2</span>
-          <span class="body">遍历 <code class="mono">byType</code>：调用 InputLayer.handler → 它内部 dispatcher 命中 → 调 fn → fn 返回 true → <code class="mono">event.handled = true</code>。</span>
+          <span class="body">从栈顶开始：最顶的 Overlay（如 EventInspector）先看，它<strong>只看不认领</strong>（observer 从不设 handled）。</span>
         </li>
         <li>
           <span class="n">3</span>
-          <span class="body">bus 看到 <code class="mono">handled === true</code>，跳出 type 循环。</span>
+          <span class="body">没被认领 → 继续往下。某个 Layer 内部 dispatcher 命中 → fn 返回 true → <code class="mono">event.handled = true</code>。</span>
         </li>
         <li>
           <span class="n">4</span>
-          <span class="body"><code class="mono">byCategory</code> 那一轮 <strong>不再执行</strong>。DebugLayer 这次就看不到这次按键了。</span>
+          <span class="body">LayerStack 下一轮检查到 <code class="mono">handled === true</code>，跳出遍历。更底的 layer 这次就看不到这个事件了。</span>
         </li>
         <li>
           <span class="n">5</span>
-          <span class="body">如果 fn 返回 false：<code class="mono">handled</code> 保持 false，bus 继续推给下一个 subscriber。</span>
+          <span class="body">如果没有任何 layer 认领，事件一路被所有人看过一遍（都被读到，没人消费）。</span>
         </li>
       </ol>
     </div>
-    <p class="quote">设计意图：UI layer 通常应该"消费掉"自己的事件，避免被调试层 / 日志层重复处理。但 logging 这种横切关注点，handler 必须返回 false，否则系统会"丢事件"。</p>
+    <p class="quote">设计意图：输入通常由"最懂它的那层"消费掉，避免被更底的层重复处理。观察者（调试 UI / 日志）叠在最顶但从不 handled——这是 Hazel 调试 overlay 的模式，也是为什么沙箱检查器能看全。</p>
   </section>
 
-  <!-- Layer 既是 subscriber 也是 publisher -->
+  <!-- Layer 只是消费者 -->
   <section>
-    <h2><span class="num">4</span>Layer 同时是订阅者和发布者</h2>
-    <p>上图的 publisher 框里没画 layer，但这是事件系统能 scale 的关键 —— <strong>layer 可以处理完事件后再 emit 新事件</strong>，bus 完全不区分 source。</p>
+    <h2><span class="num">4</span>Layer 是消费者，不是发布者</h2>
+    <p>旧版这个系统有个 <code class="mono">EventBus</code>，任何 layer 都能 <code class="mono">publish</code> 新事件（"layer 同时是订阅者和发布者"）。<strong>bus 退役后这条没了</strong>——Hazel 里没有 bus，layer 之间不靠"发事件"通信。</p>
     <div class="loop">
       <div class="card">
-        <div class="label">作为 Subscriber</div>
-        <h3>收 bus 推来的 event</h3>
-        <p>在 <code class="mono">onEvent</code> 里用 dispatcher 拆类型 → 命中后跑业务逻辑。InputLayer 听到 <code class="mono">KeyPressedEvent</code>，把按键状态写进自己的 model。</p>
+        <div class="label">作为消费者</div>
+        <h3>收 LayerStack 推来的 event</h3>
+        <p>在 <code class="mono">onEvent</code> 里用 dispatcher 拆类型 → 命中后跑业务逻辑。相机层听到 <code class="mono">KeyPressedEvent</code>，把按键状态写进自己的 model。</p>
       </div>
       <div class="card">
-        <div class="label">作为 Publisher</div>
-        <h3>处理完 emit 新 event</h3>
-        <p>同样是这个 InputLayer，可以在状态变更后 <code class="mono">bus.publish(new InputStateChangedEvent(...))</code>。下游的 UI / Analytics layer 订阅新事件即可。</p>
+        <div class="label">不做发布者</div>
+        <h3>跨 layer 靠共享状态 / 组合根</h3>
+        <p>需要让别层知道状态变了？在 Application 里把共享对象传进去，或暴露方法由上层编排。没有第二个事件通道可以推给谁。</p>
       </div>
     </div>
-    <p>这就是为什么我们前面说 <strong>bus 是事件汇聚的中转站，不是 window 专属管道</strong>。publisher / subscriber 是相对概念，每跳一次 hop 都是一次 publish。</p>
+    <p>这是有意取舍：事件流保持<strong>单向、可追踪</strong>（谁认领了、谁没看到，栈序说了算），代价是 layer 之间的耦合要靠组合显式写出来，而不是靠一个隐形的总线。</p>
   </section>
 
   <!-- 标准用法 -->
   <section>
     <h2><span class="num">5</span>Layer 端的标准 dispatch 写法</h2>
-    <p>这是 <code class="mono">packages/engine/src/events/dispatcher.ts</code> 的实际用法模板，将来 layer 系统落地时直接照搬：</p>
-<pre><code>class MyLayer {
-  onEvent(event: Event): void {
+    <p>这是 <code class="mono">packages/engine/src/events/dispatcher.ts</code> 的实际用法，<code class="mono">packages/engine/src/layers/layer.ts</code> 落地后沙箱 <code class="mono">ExampleLayer</code> 直接照搬：</p>
+<pre><code>class MyLayer extends Layer {
+  override onEvent(event: Event): void {
     const dispatcher = new EventDispatcher(event)
 
     dispatcher.dispatch(KeyPressedEvent, (e) =&gt; {
       console.log('key', e.code, 'repeat', e.repeatCount)
-      return true   // 消费掉，bus 后续不再分发
+      return true   // 消费掉，LayerStack 不再往下分发
     })
 
     dispatcher.dispatch(WindowResizeEvent, (e) =&gt; {
       this.relayout(e.width, e.height)
-      return false  // 不消费，让 debug / network layer 也能看到
+      return false  // 不消费，让更底的 layer 也能看到
     })
 
     dispatcher.dispatch(MouseButtonPressedEvent, (e) =&gt; {
@@ -382,11 +369,11 @@ flowchart TB
     })
   }
 }</code></pre>
-    <p>三个 <code class="mono">dispatch</code> 调用彼此独立 —— 第一个返回 true 不会让后面两个跳过，因为 dispatcher 检查的是 <code class="mono">event instanceof ctor</code>，不是 <code class="mono">event.handled</code>。这种"全部试一遍"的语义让 layer 写起来很线性。</p>
+    <p>三个 <code class="mono">dispatch</code> 调用彼此独立 —— 第一个返回 true 不会让后面两个跳过，因为 dispatcher 检查的是 <code class="mono">event instanceof ctor</code>，不是 <code class="mono">event.handled</code>。这种"全部试一遍"的语义让 layer 写起来很线性；截断发生在 LayerStack 的层与层之间，不在 layer 内部的几个 dispatch 之间。</p>
   </section>
 
   <footer>
-    <p>GEAAC · <code class="mono">packages/engine/src/events/</code> · 4 个文件：<code class="mono">event.ts</code> / <code class="mono">bus.ts</code> / <code class="mono">dispatcher.ts</code> / <code class="mono">{key,mouse,application}-events.ts</code> · 上游：<a href="./window-event-bridge.html">Window 事件桥梁</a>（DOM 如何翻译成事件）</p>
+    <p>GEAAC · <code class="mono">packages/engine/src/events/</code>（event + dispatcher + 具体事件类型）+ <code class="mono">layers/</code>（layer + layer-stack）· 上游：<a href="./window-event-bridge.html">Window 事件桥梁</a>（DOM 如何翻译成事件）· 姊妹篇：<a href="./layers.html">Layers</a>（两趟遍历 / Layer vs Overlay）</p>
   </footer>
 
 </main>

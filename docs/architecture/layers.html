@@ -413,13 +413,14 @@ public:
     virtual void OnEvent(Event&amp; e) {}     // 事件：谁先 handled 谁说了算
     virtual void OnImGuiRender() {}       // 编辑器面板（如果有 ImGui）
 };</code></pre>
+    <p>GEAAC 落地时先实现前四个钩子（<code class="mono">onAttach</code> / <code class="mono">onDetach</code> / <code class="mono">onUpdate</code> / <code class="mono">onEvent</code>），<code class="mono">onImGuiRender</code> 延后——沙箱的事件检查器是一个 <code class="mono">pushOverlay</code> 的观察者 layer（顶→底最先看到、从不 handled），不需要引擎侧画 ImGui。</p>
     <div class="card">
       <ol class="steps">
-        <li><span class="n">1</span><span class="body"><code class="mono">PushLayer(layer)</code> 进栈 → <strong>LayerStack</strong> 立刻调 <code class="mono">layer-&gt;OnAttach()</code>。此时可以订阅 bus、加载它需要的资源。<strong>注意是 LayerStack 调，不是 Application 调</strong>。</span></li>
+        <li><span class="n">1</span><span class="body"><code class="mono">Application::PushLayer(layer)</code> → 先 <code class="mono">m_LayerStack.PushLayer(layer)</code> 入栈，然后 <strong>Application 自己</strong>调 <code class="mono">layer-&gt;OnAttach()</code>。此时加载它需要的资源。<strong>OnAttach 是 Application 调——LayerStack 只是个数据结构</strong>。</span></li>
         <li><span class="n">2</span><span class="body">之后每一帧，Application 在遍历 A 里调 <code class="mono">OnUpdate(ts)</code>，更新这个模块的状态（可能顺带渲染）。</span></li>
         <li><span class="n">3</span><span class="body">每来一个事件，Application 在遍历 B 里把事件交给 <code class="mono">OnEvent(e)</code>。内部通常用 <code class="mono">EventDispatcher</code> 拆类型。</span></li>
-        <li><span class="n">4</span><span class="body">如果启用了 ImGui，每帧还会调 <code class="mono">OnImGuiRender()</code> 画编辑器面板。</span></li>
-        <li><span class="n">5</span><span class="body">关闭应用 → LayerStack 析构时从顶到底调 <code class="mono">OnDetach()</code>，释放资源、退订事件。</span></li>
+        <li><span class="n">4</span><span class="body">如果启用了 ImGui，每帧还会调 <code class="mono">OnImGuiRender()</code> 画编辑器面板。<strong>GEAAC 暂不落地这个钩子</strong>（沙箱检查器用 React 直接渲染），等 ImGui-style editor slice 再加。</span></li>
+        <li><span class="n">5</span><span class="body">弹出（<code class="mono">PopLayer</code> / <code class="mono">PopOverlay</code>）或应用析构时，<strong>LayerStack</strong> 对被移除的 Layer 调 <code class="mono">OnDetach()</code>——注意 OnDetach 的调用方在 LayerStack 这边，跟 OnAttach（Application 调）正好相反。</span></li>
       </ol>
     </div>
     <p class="quote">把 Layer 想成<strong>插头</strong>：推入即通电（OnAttach）、每帧运转（OnUpdate）、拔掉即断电（OnDetach）。LayerStack 是那个插座排，Application 是按下总开关的人。</p>
@@ -432,7 +433,7 @@ public:
     <div class="card">
       <h3>加功能 = 改组装，不改 Application</h3>
       <p>想加一个物理模块？在 Sandbox 的 <code class="mono">CreateApplication</code> 里多 <code class="mono">PushLayer(new PhysicsLayer)</code>。想换相机手感？<code class="mono">PopLayer</code> 旧的再 push 新的。<strong>Application 一行不改。</strong>每个 Layer 是独立插件，只遵循"每帧 tick 我 + 把事件流给我"这个接口。</p>
-      <p>这正是你 <a href="./event-flow.html">Event Flow</a> 那页"订阅者"的完整形态：Layer 是 bus 的订阅入口，也是游戏逻辑的家。事件系统给了 Layer <strong>耳朵</strong>，LayerStack 给了 Layer <strong>位置和优先级</strong>。</p>
+      <p>这正是你 <a href="./event-flow.html">Event Flow</a> 那页"单通道流"的完整形态：Layer 是事件流的消费者，也是游戏逻辑的家。事件从 <code class="mono">LayerStack.onEvent</code> 一路顶→底到达（handled 截断），LayerStack 给了 Layer <strong>位置和优先级</strong>。</p>
     </div>
     <p class="quote">这也是为什么 Cherno 让你在 Sandbox 里写 <code class="mono">ExampleLayer</code>：游戏代码全部长在 Layer 里。Layer 就是引擎和游戏之间的<strong>插件接缝</strong>。</p>
   </section>
@@ -445,8 +446,8 @@ public:
       <h3>复习 checklist</h3>
       <ul class="checklist">
         <li>Layer 是"你看到的东西"吗？→ 不是。看到的是所有 Layer 的合成结果；Layer 是行为贡献单元，常常（但不一定）产出视觉</li>
-        <li>Layer 的五个钩子？→ <code class="mono">OnAttach</code> / <code class="mono">OnDetach</code> / <code class="mono">OnUpdate</code> / <code class="mono">OnEvent</code> / <code class="mono">OnImGuiRender</code></li>
-        <li>谁调用 <code class="mono">OnAttach</code>？→ LayerStack（PushLayer 时），不是 Application</li>
+        <li>Layer 的钩子？→ <code class="mono">OnAttach</code> / <code class="mono">OnDetach</code> / <code class="mono">OnUpdate</code> / <code class="mono">OnEvent</code>（Hazel 还有第 5 个 <code class="mono">OnImGuiRender</code>，GEAAC 延后）</li>
+        <li>谁调用 <code class="mono">OnAttach</code>？→ <code class="mono">Application::PushLayer</code> / <code class="mono">PushOverlay</code>；<code class="mono">OnDetach</code> 则由 LayerStack 在 Pop / 析构时调（不对称，别记反）</li>
         <li>每帧对栈做几趟遍历？→ 两趟：OnUpdate 全员底→顶；OnEvent 顶→底，<code class="mono">handled</code> 即停</li>
         <li>事件有"冒泡"吗？→ 没有。线性栈只有一趟顶→底，没有上行阶段</li>
         <li>Layer vs Overlay？→ Overlay append 到末尾、永远最顶、最先收事件；Layer 插在 insert index，后加的盖先加的</li>
@@ -457,7 +458,7 @@ public:
   </section>
 
   <footer>
-    <p>GEAAC · 对应 Hazel 的 <code class="mono">Application + LayerStack</code>（C++ 的 layer-system）；GEAAC 落地时是 engine 的下一片——<code class="mono">Application</code> 持有 <code class="mono">LayerStack</code>，<code class="mono">run()</code> 里加两趟遍历（先于 renderer，renderer 是 Layers 的第一个真正消费者）· 姊妹篇：<a href="./event-flow.html">Event Flow</a>（bus 路由与 handled 截断）· <a href="./window-event-bridge.html">Window 事件桥梁</a>（事件从哪来）</p>
+    <p>GEAAC · 对应 Hazel 的 <code class="mono">Application + LayerStack</code>（C++ 的 layer-system）；GEAAC 已于 2026-08-07 落地——<code class="mono">Application</code> 持有 <code class="mono">LayerStack</code>，<code class="mono">run()</code> 里两趟遍历、事件单通道（先于 renderer，renderer 是 Layers 的第一个真正消费者）· 姊妹篇：<a href="./event-flow.html">Event Flow</a>（事件单通道流与 handled 截断）· <a href="./window-event-bridge.html">Window 事件桥梁</a>（事件从哪来）</p>
   </footer>
 
 </main>
